@@ -1,0 +1,49 @@
+server:
+  port: 8123
+  servlet:
+    context-path: /api
+spring:
+  application:
+    name: yun-picture-backend
+  profiles:
+    active: local
+  servlet:
+    multipart:
+      max-file-size: 10MB  #Spring 默认上传的文件大小是 1MB，这里需要进行重新配置，开放更大的上传体积
+
+  #数据库配置
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/yun_picture
+    username: root
+    password: 123456
+mybatis-plus:
+  configuration:
+    # MyBatis 配置
+    # 这个配置项决定是否自动将下划线命名风格的数据库字段名转换为驼峰命名风格的 Java 属性名。
+    #默认值：true（即默认开启自动转换）
+    #设置为 false：表示禁用这种自动转换
+    map-underscore-to-camel-case: false
+    #仅在开发环境打印日志，开启调试的日志，用如下这个类去打印，兼容性会比较好一点
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      logic-delete-field: isDeleted #指定实体类中表示逻辑删除状态的字段名 isDeleted。数据库表中需要有对应的字段。
+      logic-delete-value: 1 #当记录被"删除"时，将这个字段设置为该值（默认为1）。
+      logic-not-delete-value: 0 #表示记录未被删除的值（默认为0）。
+    #实际效果
+    #当调用 deleteById() 等方法时，MyBatis-Plus 会自动执行 UPDATE 操作而非 DELETE，将指定字段更新为 logic-delete-value 值
+    #所有查询操作（selectList() 等）会自动附加条件 WHERE isDeleted = 0，只查询未删除的记录
+
+#接口文档配置
+knife4j:
+  enable: true
+  openapi:
+    title: 接口文档
+    version: v1.0
+    group:
+      default:
+        api-rule: package
+        api-rule-resources:
+          - com.air.yunpicturebackend.controller
+
