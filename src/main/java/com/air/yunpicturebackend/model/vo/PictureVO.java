@@ -23,7 +23,7 @@ public class PictureVO implements Serializable {
     private String url;  
   
     /**  
-     * 图片名称  
+     * 图片名称（原始名称）
      */  
     private String name;  
   
@@ -71,7 +71,7 @@ public class PictureVO implements Serializable {
     /**  
      * 用户 id  
      */  
-    private Long userId;  
+    private Long userId;
   
     /**  
      * 创建时间  
@@ -86,7 +86,7 @@ public class PictureVO implements Serializable {
     /**  
      * 更新时间  
      */  
-    private Date updateTime;  
+    private Date updateTime;
   
     /**  
      * 创建用户信息  

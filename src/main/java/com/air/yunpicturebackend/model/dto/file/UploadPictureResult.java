@@ -15,7 +15,7 @@ public class UploadPictureResult {
     private String url;  
   
     /**  
-     * 图片名称  
+     * 图片名称（图片的原始名称）
      */  
     private String picName;  
   
@@ -32,7 +32,7 @@ public class UploadPictureResult {
     /**  
      * 图片高度  
      */  
-    private int picHeight;  
+    private int picHeight;
   
     /**  
      * 图片宽高比  

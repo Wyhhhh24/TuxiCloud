@@ -3,6 +3,7 @@ import com.qcloud.cos.COSClient;
 import com.qcloud.cos.ClientConfig;
 import com.qcloud.cos.auth.BasicCOSCredentials;
 import com.qcloud.cos.auth.COSCredentials;
+import com.qcloud.cos.http.HttpProtocol;
 import com.qcloud.cos.region.Region;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -39,13 +40,20 @@ public class CosClientConfig {
      */
     private String bucket;
 
+    //这是一个配置类的同时，也可以注册一个 bean ，COS客户端
     @Bean
     public COSClient cosClient() {
         // 初始化用户身份信息(secretId, secretKey)
         COSCredentials cred = new BasicCOSCredentials(secretId, secretKey);
         // 设置bucket的区域, COS地域的简称请参照 https://www.qcloud.com/document/product/436/6224
         ClientConfig clientConfig = new ClientConfig(new Region(region));
-        // 生成cos客户端
+
+        // 官方文档，中有这一步，但是这里我们不设置这个配置的话，也是可以运行的
+        // 这里建议设置使用 https 协议
+        // 从 5.6.54 版本开始，默认使用了 https
+        //clientConfig.setHttpProtocol(HttpProtocol.https);
+
+        // 直接生成cos客户端，并返回为一个 Bean ，之后各种操作都可以通过注入这个 Bean 实现
         return new COSClient(cred, clientConfig);
     }
 }

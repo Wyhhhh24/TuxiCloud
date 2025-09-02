@@ -24,10 +24,13 @@ public class CosManager {
 
     /**
      * 上传对象
-     * 官方文档中上传文件的案例（这里上传本地文件）
+     * 官方文档中上传文件的案例
      * @param key  唯一键
+     *             对象键(Key)是对象在存储桶中的唯一标识
+     *             指定文件上传到 COS 上的路径，即对象键。例如对象键为 folder/picture.jpg
+     *             则表示将文件 picture.jpg 上传到 folder 路径下
      * @param file 文件
-     */                   // 对象键(Key)是对象在存储桶中的唯一标识。
+     */
     public PutObjectResult putObject(String key, File file) {
         PutObjectRequest putObjectRequest = new PutObjectRequest(cosClientConfig.getBucket(), key, file);
         return cosClient.putObject(putObjectRequest);
@@ -42,20 +45,20 @@ public class CosManager {
     public COSObject getObject(String key) {        //获取哪个存储桶中的哪个文件，这里桶是固定的
         GetObjectRequest getObjectRequest = new GetObjectRequest(cosClientConfig.getBucket(), key);
         return cosClient.getObject(getObjectRequest);
-        //COSObject得到对象存储的对象，我们可以从这个对象中拿到文件的流
+        // COSObject 对象存储的对象，我们可以从这个对象中拿到文件的流
     }
 
 
     /**
-     * 上传对象（附带图片信息，上传的基础上多加了一个解析）
+     * 上传对象（附带图片信息，上传的基础上多加了一个解析图片基本信息） + 图片处理
      * @param key  唯一键
      * @param file 文件
-     */                   // 对象键(Key)是对象在存储桶中的唯一标识。
+     */                   // 对象键(Key)是对象在存储桶中的唯一标识。形如这样 /projectName/xxx.png
     public PutObjectResult putPictureObject(String key, File file) {
         //上传文件
         PutObjectRequest putObjectRequest = new PutObjectRequest(cosClientConfig.getBucket(), key, file);
         //对图片进行处理（获取图片的基本信息也被视做为一种图片的处理）
-        // 1 表示返回原图信息
+        //设置参数为 1 表示返回原图信息
         PicOperations picOperations = new PicOperations();
         picOperations.setIsPicInfo(1);
         //构造处理参数

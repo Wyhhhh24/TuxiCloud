@@ -14,7 +14,7 @@ import lombok.Data;
 @Data
 public class Picture implements Serializable {
     /**
-     * id
+     * id 图片id
      */
     @TableId(type = IdType.ASSIGN_ID) //雪花算法生成主键id
     private Long id;
@@ -25,7 +25,7 @@ public class Picture implements Serializable {
     private String url;
 
     /**
-     * 图片名称
+     * 图片名称（原始名称）
      */
     private String name;
 
@@ -94,6 +94,26 @@ public class Picture implements Serializable {
      */
     @TableLogic  //逻辑删除注解
     private Integer isDelete;
+
+    /**
+     * 状态：0-待审核; 1-通过; 2-拒绝
+     */
+    private Integer reviewStatus;
+
+    /**
+     * 审核信息
+     */
+    private String reviewMessage;
+
+    /**
+     * 审核人 id
+     */
+    private Long reviewerId;
+
+    /**
+     * 审核时间
+     */
+    private Date reviewTime;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;

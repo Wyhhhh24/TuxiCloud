@@ -1,6 +1,7 @@
 package com.air.yunpicturebackend.service;
 
 import com.air.yunpicturebackend.model.dto.picture.PictureQueryRequest;
+import com.air.yunpicturebackend.model.dto.picture.PictureReviewRequest;
 import com.air.yunpicturebackend.model.dto.picture.PictureUploadRequest;
 import com.air.yunpicturebackend.model.entity.Picture;
 import com.air.yunpicturebackend.model.entity.User;
@@ -62,4 +63,19 @@ public interface PictureService extends IService<Picture> {
      * @param picture
      */
     void validPicture(Picture picture);
+
+    /**
+     * 图片审核
+     * 两种状态，1.审核通过，2.审核不通过 ，审核不通过的话直接抛异常，所以这个方法是不需要返回值的
+     * @param pictureReviewRequest
+     * @param loginUser
+     */
+    void doPictureReview(PictureReviewRequest pictureReviewRequest, User loginUser);
+
+    /**
+     * 填充审核参数
+     * @param picture
+     * @param loginUser
+     */
+    void fillReviewParams(Picture picture, User loginUser);
 }

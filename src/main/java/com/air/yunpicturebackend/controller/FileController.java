@@ -93,9 +93,10 @@ public class FileController {
             // 设置响应头，我们怎么控制前端是下载文件，还是看文件呢，就看这个响应头，浏览器看到这个头就知道自己要下载文件了
             response.setContentType("application/octet-stream;charset=UTF-8");
             response.setHeader("Content-Disposition", "attachment; filename=" + filepath);
-            // 写入响应（从输入流读，从输出流写）
+            // 写入响应（从输入流读，往输出流写）
             response.getOutputStream().write(bytes);
-            response.getOutputStream().flush(); //缓冲区不是直接返回的，而是得要刷新才能返回，把内容刷新到响应体中
+            // 缓冲区不是直接返回的，而是得要刷新才能返回，把内容刷新到响应体中
+            response.getOutputStream().flush();
         } catch (Exception e) {
             log.error("file download error, filepath = " + filepath, e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "下载失败");

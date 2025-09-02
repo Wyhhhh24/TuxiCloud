@@ -37,6 +37,7 @@ public class UserController {
      * @return
      */
     //@AuthCheck(mustRole = UserConstant.ADMIN_ROLE)  //用户必须要有管理员权限，才可以执行这个方法，否则抛异常
+    @AuthCheck //这个接口也是必须要登录的
     @PostMapping("/register")
     public BaseResponse<Long> userRegister(@RequestBody UserRegisterRequest userRegisterRequest) {
         //如果传过来的直接就是空的，直接抛出异常
@@ -183,5 +184,4 @@ public class UserController {
         userVOPage.setRecords(userVOList);
         return ResultUtils.success(userVOPage);
     }
-
 }

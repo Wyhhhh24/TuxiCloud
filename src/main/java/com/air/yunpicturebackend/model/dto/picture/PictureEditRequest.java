@@ -21,7 +21,7 @@ public class PictureEditRequest implements Serializable {
     /**  
      * 简介  
      */  
-    private String introduction;  
+    private String introduction;
   
     /**  
      * 分类  

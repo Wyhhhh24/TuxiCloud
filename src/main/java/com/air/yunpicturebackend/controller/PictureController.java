@@ -12,6 +12,7 @@ import com.air.yunpicturebackend.exception.ThrowUtils;
 import com.air.yunpicturebackend.model.dto.picture.*;
 import com.air.yunpicturebackend.model.entity.Picture;
 import com.air.yunpicturebackend.model.entity.User;
+import com.air.yunpicturebackend.model.enums.PictureReviewStatusEnum;
 import com.air.yunpicturebackend.model.vo.PictureVO;
 import com.air.yunpicturebackend.service.PictureService;
 import com.air.yunpicturebackend.service.UserService;
@@ -43,10 +44,11 @@ public class PictureController {
     private PictureService pictureService;
 
     /**
-     * 上传图片（可重新上传）
+     * 上传图片（新图上传，重新上传）
      */
     @PostMapping("/upload")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+//    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)  不用进行权限控制了，用户也可以使用
+    //权限控制，就是我们要来把这个审核状态，假如说有人更新或者编辑了这个图片，审核状态都给它变成 待审核 状态
     public BaseResponse<PictureVO> uploadPicture(
             @RequestPart("file") MultipartFile multipartFile,  // 接收名为 "file" 的上传文件
             PictureUploadRequest pictureUploadRequest,
@@ -56,58 +58,71 @@ public class PictureController {
         return ResultUtils.success(pictureVO);
     }
 
+
     /**
-     * 删除图片
+     * 删除图片，传过来图片id，仅本人或管理员可删除图片，进行逻辑删除
      */
     @PostMapping("/delete")
     public BaseResponse<Boolean> deletePicture(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
         if (deleteRequest == null || deleteRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
+
         User loginUser = userService.getLoginUser(request);
         long id = deleteRequest.getId();
+
         // 判断是否存在
         Picture oldPicture = pictureService.getById(id);
         ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR,"图片不存在");
-        // 仅本人或管理员可删除
+
+        // 仅本人或管理员可删除图片
         if (!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"仅本人或管理员可删除");
         }
-        // 操作数据库，把对应的图片删除掉
+
+        // 操作数据库，把对应的图片删除掉，逻辑删除
         boolean result = pictureService.removeById(id);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
     }
+
 
     /**
      * 更新图片（仅管理员可用）
      */
     @PostMapping("/update")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Boolean> updatePicture(@RequestBody PictureUpdateRequest pictureUpdateRequest) {
+    public BaseResponse<Boolean> updatePicture(@RequestBody PictureUpdateRequest pictureUpdateRequest
+            ,HttpServletRequest httpServletRequest) {
+
         if (pictureUpdateRequest == null || pictureUpdateRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
 
+        // 判断要修改的图片是否存在
+        long id = pictureUpdateRequest.getId();
+        Picture oldPicture = pictureService.getById(id);
+        ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR,"不存在该图片，修改失败");
+
         // 将实体类和 DTO 进行转换
         Picture picture = new Picture();
         BeanUtils.copyProperties(pictureUpdateRequest, picture);
-
         // 注意将 list 转为 string
         picture.setTags(JSONUtil.toJsonStr(pictureUpdateRequest.getTags()));
 
         // 数据校验
         pictureService.validPicture(picture);
-        // 判断要修改的图片是否存在
-        long id = pictureUpdateRequest.getId();
-        Picture oldPicture = pictureService.getById(id);
-        ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR,"不存在该图片，修改失败");
+
+        //填充审核的信息
+        User loginUser = userService.getLoginUser(httpServletRequest);
+        pictureService.fillReviewParams(picture, loginUser);
 
         // 操作数据库
         boolean result = pictureService.updateById(picture);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR,"出现异常，修改图片失败");
         return ResultUtils.success(true);
     }
+
 
     /**
      * 根据 id 获取图片（仅管理员可用）
@@ -124,8 +139,10 @@ public class PictureController {
         return ResultUtils.success(picture);
     }
 
+
     /**
-     * 根据 id 获取图片（封装类，包含用户信息）
+     * 根据 id 获取图片封装类（包含用户信息）
+     * TODO 这个方法用户是可以访问的，如果用户传入了一个未审核通过的图片id，也是可以获取到的，这里没有添加判断逻辑
      */
     @GetMapping("/get/vo")
     public BaseResponse<PictureVO> getPictureVOById(long id, HttpServletRequest request) {
@@ -155,7 +172,7 @@ public class PictureController {
 
 
     /**
-     * 分页获取图片列表（封装类）
+     * 分页获取图片列表（封装类），只给普通用户用的
      */
     @PostMapping("/list/page/vo")
     public BaseResponse<Page<PictureVO>> listPictureVOByPage(@RequestBody PictureQueryRequest pictureQueryRequest,
@@ -164,6 +181,10 @@ public class PictureController {
         long size = pictureQueryRequest.getPageSize();
         // 限制爬虫 一页显示的条数大于 20 的话，就报错
         ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
+
+        //普通用户默认只能查看审核通过的图片，我们自行设置查询条件为只查询审核状态为通过的图片
+        pictureQueryRequest.setReviewStatus(PictureReviewStatusEnum.PASS.getValue());
+
         // 查询数据库
         Page<Picture> picturePage = pictureService.page(new Page<>(current, size),
                 pictureService.getQueryWrapper(pictureQueryRequest));
@@ -182,6 +203,12 @@ public class PictureController {
         if (pictureEditRequest == null || pictureEditRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
+
+        // 判断图片是否存在，不存在就报错
+        long id = pictureEditRequest.getId();
+        Picture oldPicture = pictureService.getById(id);
+        ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR,"图片不存在");
+
         // 在此处将实体类和 DTO 进行转换
         Picture picture = new Picture();
         BeanUtils.copyProperties(pictureEditRequest, picture);
@@ -194,15 +221,15 @@ public class PictureController {
         // 数据校验
         pictureService.validPicture(picture);
         User loginUser = userService.getLoginUser(request);
-        // 判断图片是否存在，不存在就报错
-        long id = pictureEditRequest.getId();
-        Picture oldPicture = pictureService.getById(id);
-        ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR,"图片不存在");
+
+        //填充审核的信息
+        pictureService.fillReviewParams(picture, loginUser);
 
         // 仅本人或管理员可编辑
         if (!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
         }
+
         // 操作数据库
         boolean result = pictureService.updateById(picture);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR,"出现异常，编辑图片失败");
@@ -223,5 +250,21 @@ public class PictureController {
         pictureTagCategory.setTagList(tagList);
         pictureTagCategory.setCategoryList(categoryList);
         return ResultUtils.success(pictureTagCategory);
+    }
+
+    /**
+     * 图片审核（管理员使用）
+     * 我们还要对用户检索图片的范围进行限制，只能让它看到审核通过的数据
+     * 管理员上传或者修改图片，自动过审；用户编辑图片之后，图片状态得修改为 待审核
+     */
+    @PostMapping("/review")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Boolean> doPictureReview(@RequestBody PictureReviewRequest pictureReviewRequest,
+                                                 HttpServletRequest request) {
+        //1.校验参数
+        ThrowUtils.throwIf(pictureReviewRequest == null, ErrorCode.PARAMS_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        pictureService.doPictureReview(pictureReviewRequest, loginUser);
+        return ResultUtils.success(true);
     }
 }

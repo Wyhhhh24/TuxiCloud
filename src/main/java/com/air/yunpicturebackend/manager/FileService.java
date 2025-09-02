@@ -1,5 +1,4 @@
 package com.air.yunpicturebackend.manager;
-
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.NumberUtil;
@@ -43,7 +42,6 @@ public class FileService {
      * @param uploadPathPrefix 上传路径前缀
      * @return
      */                           //上传文件的路径，由于这里我们是一个通用的文件上传的方法，我们指定文件上传的前缀，而不是具体的路径名
-                                  //具体路径名，可以由文件名解析而来
     public UploadPictureResult uploadPicture(MultipartFile multipartFile, String uploadPathPrefix) {
         // 校验图片
         validPicture(multipartFile);
@@ -53,16 +51,16 @@ public class FileService {
         // 拼接文件名，得到最后存储到对象存储中的文件名
         String uploadFilename = String.format("%s_%s.%s", DateUtil.formatDate(new Date()), uuid,
                 FileUtil.getSuffix(originFilename));
-        //拼接上传的具体路径，这里如果多个项目用一个存储桶的话，存储的路径还可以添加一个 /projectName
+        //拼接上传的具体路径，这里如果多个项目用一个存储桶的话，存储的路径还可以添加一个 /projectName 以项目进行区分
         String uploadPath = String.format("/%s/%s", uploadPathPrefix, uploadFilename);
 
         File file = null;
         try {
-            // 创建临时文件，文件名其实可以随便设置，只要不重复，这里直接用了对象存储中的文件名
+            // 创建临时文件，文件名其实可以随便设置，只要不重复，这里直接用了对象存储中的具体路径名
             file = File.createTempFile(uploadPath, null);
-            // 上传的文件内容写入这个临时文件
+            // 上传的文件 转化到这个 临时文件
             multipartFile.transferTo(file);
-            // 上传图片
+            // 上传图片，返回结果中包含图片的基本信息
             PutObjectResult putObjectResult = cosManager.putPictureObject(uploadPath, file);
             ImageInfo imageInfo = putObjectResult.getCiUploadResult().getOriginalInfo().getImageInfo();
 
@@ -80,13 +78,14 @@ public class FileService {
             uploadPictureResult.setPicFormat(imageInfo.getFormat());
             //设置文件大小
             uploadPictureResult.setPicSize(FileUtil.size(file));
-            //拼接图片可直接访问的 url
+            //拼接可直接访问的 url
             uploadPictureResult.setUrl(cosClientConfig.getHost() + "/" + uploadPath);
             return uploadPictureResult;
         } catch (Exception e) {
             log.error("图片上传到对象存储失败", e);
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "上传失败");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "图片上传失败");
         } finally {
+            //最后清理临时文件
             this.deleteTempFile(file);
         }
     }
@@ -118,7 +117,7 @@ public class FileService {
         }
         // 删除临时文件
         boolean deleteResult = file.delete();
-        if (!deleteResult) {                                //获取文件的绝对路径
+        if (!deleteResult) {                                //获取未删除的临时文件的绝对路径
             log.error("file delete error, filepath = {}", file.getAbsolutePath());
         }
     }
