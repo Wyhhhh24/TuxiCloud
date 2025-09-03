@@ -2,6 +2,7 @@ package com.air.yunpicturebackend.service;
 
 import com.air.yunpicturebackend.model.dto.picture.PictureQueryRequest;
 import com.air.yunpicturebackend.model.dto.picture.PictureReviewRequest;
+import com.air.yunpicturebackend.model.dto.picture.PictureUploadByBatchRequest;
 import com.air.yunpicturebackend.model.dto.picture.PictureUploadRequest;
 import com.air.yunpicturebackend.model.entity.Picture;
 import com.air.yunpicturebackend.model.entity.User;
@@ -23,12 +24,12 @@ public interface PictureService extends IService<Picture> {
     /**
      * 上传图片
      *
-     * @param multipartFile 前端传过来的文件
+     * @param inputSource 文件输入源
      * @param pictureUploadRequest  图片的 id ，用于修改，这就是请求体
      * @param loginUser 需要指定当前用户，因为我们要判断用户有没有权限上传
      * @return
      */
-    PictureVO uploadPicture(MultipartFile multipartFile,
+    PictureVO uploadPicture(Object inputSource,
                             PictureUploadRequest pictureUploadRequest,
                             User loginUser);
 
@@ -78,4 +79,16 @@ public interface PictureService extends IService<Picture> {
      * @param loginUser
      */
     void fillReviewParams(Picture picture, User loginUser);
+
+    /**
+     * 批量抓取和创建图片
+     *
+     * @param pictureUploadByBatchRequest
+     * @param loginUser
+     * @return 成功创建的图片数
+     */
+    Integer uploadPictureByBatch(
+            PictureUploadByBatchRequest pictureUploadByBatchRequest,
+            User loginUser
+    );
 }

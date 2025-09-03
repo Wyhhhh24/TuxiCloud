@@ -44,7 +44,7 @@ public class PictureController {
     private PictureService pictureService;
 
     /**
-     * 上传图片（新图上传，重新上传）
+     * 上传本地图片 （新图上传，重新上传）
      */
     @PostMapping("/upload")
 //    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)  不用进行权限控制了，用户也可以使用
@@ -56,6 +56,36 @@ public class PictureController {
         User loginUser = userService.getLoginUser(request);
         PictureVO pictureVO = pictureService.uploadPicture(multipartFile, pictureUploadRequest, loginUser);
         return ResultUtils.success(pictureVO);
+    }
+
+
+    /**
+     * 通过图片 URL 上传图片 （新图上传，重新上传）
+     */
+    @PostMapping("/upload/url")
+    public BaseResponse<PictureVO> uploadPictureByUrl(
+            @RequestBody PictureUploadRequest pictureUploadRequest,
+            HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+        PictureVO pictureVO = pictureService.uploadPicture(pictureUploadRequest.getFileUrl(),
+                pictureUploadRequest, loginUser);
+        return ResultUtils.success(pictureVO);
+    }
+
+
+    /**
+     * 批量抓取，并创建图片
+     */
+    @PostMapping("/upload/batch")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Integer> uploadPictureByBatch(
+            @RequestBody PictureUploadByBatchRequest pictureUploadByBatchRequest,
+            HttpServletRequest request
+    ) {
+        ThrowUtils.throwIf(pictureUploadByBatchRequest == null, ErrorCode.PARAMS_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        int uploadCount = pictureService.uploadPictureByBatch(pictureUploadByBatchRequest, loginUser);
+        return ResultUtils.success(uploadCount);
     }
 
 

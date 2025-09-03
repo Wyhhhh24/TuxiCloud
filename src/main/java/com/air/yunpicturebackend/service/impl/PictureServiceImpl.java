@@ -8,9 +8,13 @@ import com.air.yunpicturebackend.exception.BusinessException;
 import com.air.yunpicturebackend.exception.ErrorCode;
 import com.air.yunpicturebackend.exception.ThrowUtils;
 import com.air.yunpicturebackend.manager.FileService;
+import com.air.yunpicturebackend.manager.upload.FilePictureUpload;
+import com.air.yunpicturebackend.manager.upload.PictureUploadTemplate;
+import com.air.yunpicturebackend.manager.upload.UrlPictureUpload;
 import com.air.yunpicturebackend.model.dto.file.UploadPictureResult;
 import com.air.yunpicturebackend.model.dto.picture.PictureQueryRequest;
 import com.air.yunpicturebackend.model.dto.picture.PictureReviewRequest;
+import com.air.yunpicturebackend.model.dto.picture.PictureUploadByBatchRequest;
 import com.air.yunpicturebackend.model.dto.picture.PictureUploadRequest;
 import com.air.yunpicturebackend.model.entity.User;
 import com.air.yunpicturebackend.model.enums.PictureReviewStatusEnum;
@@ -23,12 +27,17 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.air.yunpicturebackend.model.entity.Picture;
 import com.air.yunpicturebackend.service.PictureService;
 import com.air.yunpicturebackend.mapper.PictureMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -40,24 +49,29 @@ import java.util.stream.Collectors;
 * @description 针对表【picture(图片)】的数据库操作Service实现
 * @createDate 2025-08-31 21:44:02
 */
+@Slf4j
 @Service
 public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> implements PictureService{
 
     @Resource
-    private FileService fileService;
+    private UserService userService;
 
     @Resource
-    private UserService userService;
+    private FilePictureUpload filePictureUpload;
+
+    @Resource
+    private UrlPictureUpload urlPictureUpload;
+
 
     /**
      * 上传图片（包含新上传的图片，以及修改图片）
-     * @param multipartFile
+     * @param inputSource 文件输入源
      * @param pictureUploadRequest
      * @param loginUser
      * @return
      */
     @Override
-    public PictureVO uploadPicture(MultipartFile multipartFile, PictureUploadRequest pictureUploadRequest, User loginUser) {
+    public PictureVO uploadPicture(Object inputSource , PictureUploadRequest pictureUploadRequest, User loginUser) {
         //1.校验参数(如果用户没登录，就不能上传文件)
         ThrowUtils.throwIf(loginUser == null, ErrorCode.NO_AUTH_ERROR);
 
@@ -86,12 +100,27 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
                                              //这里是最重要的，设置图片的路径
 
         //上传，并得到我们解析之后的信息
-        UploadPictureResult uploadPictureResult = fileService.uploadPicture(multipartFile, uploadPathPrefix);
+        //根据 inputSource 类型区分上传方式
+        PictureUploadTemplate pictureUploadTemplate = filePictureUpload;
+        if(inputSource instanceof String){
+            pictureUploadTemplate = urlPictureUpload;
+        }
+        UploadPictureResult uploadPictureResult = pictureUploadTemplate.uploadPicture(inputSource, uploadPathPrefix);
 
         //构造存到数据库中的信息
         Picture picture = BeanUtil.copyProperties(uploadPictureResult, Picture.class);
+
         //填充未能拷贝的信息
-        picture.setName(uploadPictureResult.getPicName());
+        //之前我们导؜入系统的图片名称都是由对方的 URL 决‌定的，名称可能乱七八糟，而且不利于我们得‍知数据是在那一批被导入的。
+        //因此我们可以让管理员在执行任务前指定 名称前缀，即导入到系统中的图片名称。比如前缀为 “鱼皮”，得到的图片名称就是 “鱼皮1”、“鱼皮2”。。。
+        //相当于支持؜抓取和创建图片时批量对某批图片命名，‌名称前缀默认等于搜索关键词。
+        //可以通过 pictureUploadRequest 对象获取到要手动设置的图片名称，‍而不是完全依赖于解析的结果
+        String picName = uploadPictureResult.getPicName(); //默认就是解析的图片名称
+        //支持外来指定图片名称
+        if(pictureUploadRequest != null && StrUtil.isNotBlank(pictureUploadRequest.getPicName())){
+            picName = pictureUploadRequest.getPicName();
+        }
+        picture.setName(picName);
         picture.setUserId(loginUser.getId());
 
         //填充审核的信息
@@ -113,6 +142,84 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         //返回VO对象
         return PictureVO.objToVo(picture);
     }
+
+
+    /**
+     * 批量抓取和创建图片
+     *
+     * @param pictureUploadByBatchRequest
+     * @param loginUser
+     * @return 成功创建的图片数
+     * 添加了很多日志记录和异常处理逻辑，使得单‌张图片抓取或导入失败时任务还能够继续执行，最‍终返回创建成功的图片数
+     */
+    @Override
+    public Integer uploadPictureByBatch(PictureUploadByBatchRequest pictureUploadByBatchRequest, User loginUser) {
+        String searchText = pictureUploadByBatchRequest.getSearchText();
+        // 格式化数量
+        Integer count = pictureUploadByBatchRequest.getCount();
+        ThrowUtils.throwIf(count > 30, ErrorCode.PARAMS_ERROR, "抓取数量，最多 30 条");
+        // 要抓取的地址  ，将关键词，拼接到搜索地址中
+        String fetchUrl = String.format("https://cn.bing.com/images/async?q=%s&mmasync=1", searchText);
+        Document document;
+        try {
+            document = Jsoup.connect(fetchUrl).get();
+        } catch (IOException e) {
+            log.error("获取页面失败", e);
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "获取页面失败");
+        }
+        //解析页面
+        //这个 Document 就把它当作一个最全的 HTML ，我们要根据 class 类名，根据一些元素的 id 来获取对应的内容
+        Element div = document.getElementsByClass("dgControl").first();
+        //只有一个，其实就是HTML元素，就是最外层的那个 div
+
+        if (ObjUtil.isNull(div)) {
+            //如果最外层的 div 都没有，我们也就获取不到里面的元素了
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "获取元素失败");
+        }
+        Elements imgElementList = div.select("img.mimg");
+        int uploadCount = 0;
+        //遍历图片元素，依次上传
+        for (Element imgElement : imgElementList) {
+
+            String namePrefix = pictureUploadByBatchRequest.getNamePrefix();
+            if (StrUtil.isBlank(namePrefix)) {
+                //如果管理员没有指定图片名称前缀，则使用搜索关键词作为图片名称前缀
+                namePrefix = searchText;
+            }
+
+            String fileUrl = imgElement.attr("src");
+            if (StrUtil.isBlank(fileUrl)) {
+                log.info("当前链接为空，已跳过: {}", fileUrl);
+                continue;
+            }
+            // 处理图片上传地址，防止出现转义问题
+            int questionMarkIndex = fileUrl.indexOf("?");
+            //将 ? 后面的参数截取掉，这些参数会导致 URL 出现转义问题
+            if (questionMarkIndex > -1) {
+                fileUrl = fileUrl.substring(0, questionMarkIndex);
+            }
+            // 上传图片
+            PictureUploadRequest pictureUploadRequest = new PictureUploadRequest();
+            if (StrUtil.isNotBlank(namePrefix)) {
+                // 设置图片名称，序号连续递增
+                pictureUploadRequest.setPicName(namePrefix + (uploadCount + 1));
+            }
+
+            try {
+                PictureVO pictureVO = this.uploadPicture(fileUrl, pictureUploadRequest, loginUser);
+                log.info("图片上传成功, id = {}", pictureVO.getId());
+                uploadCount++;
+            } catch (Exception e) {
+                log.error("图片上传失败", e);
+                continue;
+            }
+            if (uploadCount >= count) {
+                break;
+            }
+        }
+        return uploadCount;
+    }
+
 
     /**
      * 获取图片封装（PictureVO）包含了用户信息 UserVO
@@ -244,6 +351,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             picture.setReviewStatus(PictureReviewStatusEnum.REVIEWING.getValue());
         }
     }
+
 
 
     /**
