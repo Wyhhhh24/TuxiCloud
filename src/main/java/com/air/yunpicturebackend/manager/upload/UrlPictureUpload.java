@@ -46,8 +46,8 @@ public class UrlPictureUpload extends PictureUploadTemplate {
             response = HttpUtil.createRequest(Method.HEAD, fileUrl).execute();
             // 未正常返回，无需执行其他判断
             if (response.getStatus() != HttpStatus.HTTP_OK) {
-                //有些 URL 地址可能不支持通过 HEAD 请求访问，为了提高导入成功率，即使 HEAD 请求访问失败，也不会报错，
-                //并且不用执行后续的校验。仅对能获取到的信息进行校验。
+                // 有些 URL 地址可能不支持通过 HEAD 请求访问，为了提高导入成功率，即使 HEAD 请求访问失败，也不拒绝它的导入
+                // 并且不用执行后续的校验。仅对能获取到的信息进行校验。
                 return;
             }
 
@@ -55,9 +55,11 @@ public class UrlPictureUpload extends PictureUploadTemplate {
             String contentType = response.header("Content-Type");
             if (StrUtil.isNotBlank(contentType)) {
                 // 允许的图片类型
-                //HTTP 协议和浏览器的约定 当文件通过 HTTP 上传时，Content-Type 请求头会携带完整的 MIME 类型（如 image/jpeg）
-                //如果校验时只写 "jpeg" 或 "jpg"，会导致匹配失败。
-                final List<String> ALLOW_CONTENT_TYPES = Arrays.asList("image/jpeg", "image/jpg", "image/png", "image/webp");
+                // HTTP 协议和浏览器的约定 当文件通过 HTTP 上传时
+                // Content-Type 请求头会携带完整的 MIME 类型（如 image/jpeg）
+                // 如果校验时只写 "jpeg" 或 "jpg"，会导致匹配失败，多写其它匹配项。
+                final List<String> ALLOW_CONTENT_TYPES = Arrays.asList("image/jpeg", "image/jpg",
+                        "image/png", "image/webp");
                 ThrowUtils.throwIf(!ALLOW_CONTENT_TYPES.contains(contentType.toLowerCase()),
                         ErrorCode.PARAMS_ERROR, "文件类型错误");
             }
@@ -68,13 +70,16 @@ public class UrlPictureUpload extends PictureUploadTemplate {
                 try {
                     long contentLength = Long.parseLong(contentLengthStr);
                     final long TWO_MB = 2 * 1024 * 1024L; // 限制文件大小为 2MB
-                    ThrowUtils.throwIf(contentLength > TWO_MB, ErrorCode.PARAMS_ERROR, "文件大小不能超过 2M");
+                    //todo 这里限制文件大小
+                    ThrowUtils.throwIf(contentLength > TWO_MB, ErrorCode.PARAMS_ERROR,
+                            "文件大小不能超过 2M");
                 } catch (NumberFormatException e) {
                     throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件大小格式错误");
                 }
             }
         } finally {
             if (response != null) {
+                //关闭资源
                 response.close();
             }
         }
@@ -83,7 +88,9 @@ public class UrlPictureUpload extends PictureUploadTemplate {
     @Override
     protected String getOriginFilename(Object inputSource) {
         String fileUrl = (String) inputSource;
-        return FileUtil.mainName(fileUrl);
+        //从文件路径或URL中提取文件名的名称（需要包含扩展名）
+        //例如：https://example.com/path/to/sunset.png 返回的是 sunset.png
+        return FileUtil.getName(fileUrl);
     }
 
     @Override

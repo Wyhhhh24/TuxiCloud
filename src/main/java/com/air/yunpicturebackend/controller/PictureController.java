@@ -264,7 +264,7 @@ public class PictureController {
      * 优先从本地缓存中读取数据。如果命中，则直接返回。如果本地缓存未命中，则查询 Redis 分布式缓存。如果 Redis 命中，则返回数据并更新本地缓存。
      * 如果 Redis 也未命中，则查询数据库，并将结果写入 Redis 和本地缓存。
      */
-    @PostMapping("/list/page/vo/cache")
+    @PostMapping("/list/page/vo/cache")  // todo 前端接口还没有引用
     public BaseResponse<Page<PictureVO>> listPictureVOByPageWithCache(@RequestBody PictureQueryRequest pictureQueryRequest,
                                                                       HttpServletRequest request) {
         long current = pictureQueryRequest.getCurrent();

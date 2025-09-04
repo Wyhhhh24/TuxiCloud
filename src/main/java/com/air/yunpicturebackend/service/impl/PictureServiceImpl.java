@@ -86,16 +86,16 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             Picture oldPicture = getById(pictureId);
             ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR,"图片不存在");
 
-            //添加判断的逻辑，因为现在用户和管理员都可以更新图片，所以如果该图片既不是自己的，同时也不是管理员的话，他就不能更新图片
-            if(!oldPicture.getUserId().equals(loginUser.getId()) && userService.isAdmin(loginUser)){
+            //添加判断的逻辑，因为现在用户和管理员都可以更新图片，如果该图片既不是自己的，同时他也不是管理员的话，就不能更新图片
+            if(!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)){
                 throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"仅本人或管理员可更新图片");
             }
         }
 
-        //3.上传图片，得到图片信息（如果图片存在，无论是更新还是第一次上传，都是要上传图片）
-        //前缀，我们可以按照userId来划分目录，由于我们这个项目是公共图库，所以每一个用户就有自己的一个目录
-        //之后我们去开发私有空间，什么企业空间，专属空间，所以我们现在给前缀进行划分
-        //把所有公开的图片上传到 public 目录下，之后如果有私有就上传到 private 目录下，按照 userId 划分目录
+        // 3.上传图片，得到图片信息（如果图片存在，无论是更新还是第一次上传，都是要上传图片）
+        // 前缀，我们可以按照userId来划分目录，由于我们这个项目是公共图库，所以每一个用户就有自己的一个目录
+        // 之后我们去开发私有空间，什么企业空间，专属空间，所以我们现在给前缀进行划分
+        // 把所有公开的图片上传到 public 目录下，之后如果有私有就上传到 private 目录下，按照 userId 划分目录
         String uploadPathPrefix = String.format("public/%s", loginUser.getId());
                                              //这里是最重要的，设置图片的路径
 
