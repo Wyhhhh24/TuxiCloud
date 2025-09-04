@@ -11,12 +11,21 @@ spring:
     multipart:
       max-file-size: 10MB  #Spring 默认上传的文件大小是 1MB，这里需要进行重新配置，开放更大的上传体积
 
+
   #数据库配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/yun_picture
     username: root
     password: 123456
+  #redis配置
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    password: 123456
+    database: 1
+    timeout: 5000 #五秒没连上就报失败
+
 mybatis-plus:
   configuration:
     # MyBatis 配置
