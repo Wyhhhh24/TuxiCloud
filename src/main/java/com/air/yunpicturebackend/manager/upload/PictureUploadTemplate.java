@@ -80,14 +80,18 @@ public abstract class PictureUploadTemplate {
             if(CollUtil.isNotEmpty(objectList)){
                 //如果处理后的图片为空，是不是就表示处理失败了，或者压根没有写处理规则
                 //获取压缩之后，得到的文件信息
-                CIObject ciCompressObject = objectList.get(0);
-                //封装压缩图的返回方法
-                return buildResult(originFilename, ciCompressObject);
+                CIObject compressedCiObject = objectList.get(0);
+                CIObject thumbnailCiObject = compressedCiObject;
+                if(objectList.size()>1){
+                    //如果没有缩略成功， get(1)的话会数组报错
+                    thumbnailCiObject = objectList.get(1);
+                }
+                //封装图片处理返回的方法
+                return buildResult(originFilename, compressedCiObject,thumbnailCiObject);
                 //将压缩后的图片信息存到数据库中
                 //todo 后端数据库中保存的图片url是压缩后的 webp 文件，原图的url还没有保存，压缩后的图片基本上一点不模糊，扩
                 // 展：1.增加对原图的处理，目前每次上传图片؜实际上会保存原图和压缩图2个图片，原图占用的空间还是比较‌大的。如果想进一步优化，可以删除原图，只保留缩略图
                 // ；或者在数‍据库中保存原图的地址，用作备份。2）尝试更大比例的压缩，比如使用 质量变换 来处理图片。
-
             }
 
             // 6.如果处理失败封装原图的信息，返回结果
@@ -103,9 +107,9 @@ public abstract class PictureUploadTemplate {
 
     /**
      * 封装返回结果
-     * 压缩后的图片信息封装
+     * 处理后的图片信息封装
      */
-    private UploadPictureResult buildResult(String originFilename, CIObject ciCompressObject) {
+    private UploadPictureResult buildResult(String originFilename, CIObject ciCompressObject, CIObject thumbnailCiObject) {
         UploadPictureResult uploadPictureResult = new UploadPictureResult();
         int picWidth = ciCompressObject.getWidth();
         int picHeight = ciCompressObject.getHeight();
@@ -120,7 +124,10 @@ public abstract class PictureUploadTemplate {
         //设置文件大小
         uploadPictureResult.setPicSize(ciCompressObject.getSize().longValue());
         //拼接可直接访问的 url
+        //压缩图的url
         uploadPictureResult.setUrl(cosClientConfig.getHost() + "/" + ciCompressObject.getKey());
+        //缩略图的url
+        uploadPictureResult.setThumbnailUrl(cosClientConfig.getHost() + "/" + thumbnailCiObject.getKey());
         return uploadPictureResult;
     }
 

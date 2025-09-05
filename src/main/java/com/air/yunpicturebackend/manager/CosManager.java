@@ -75,15 +75,13 @@ public class CosManager {
         picOperations.setIsPicInfo(1); //是否返回原图信息，0不返回原图信息，1返回原图信息，默认为0
 
         // 添加图片处理规则
+        // 图片压缩，转成 webp 格式
         String webpKey = FileUtil.mainName(key) + ".webp";
         List<PicOperations.Rule> ruleList = new LinkedList<>();
         PicOperations.Rule rule1 = new PicOperations.Rule();
         rule1.setBucket(cosClientConfig.getBucket());
         rule1.setFileId(webpKey); //存到对应目录中的文件名，也就是处理后的文件名称
         rule1.setRule("imageMogr2/format/webp"); //将原图转换为 webp 格式，达到图片压缩效果。
-        ruleList.add(rule1);
-        picOperations.setRules(ruleList);
-
         //Pic-Operations:
         //{
         //"is_pic_info": 1,
@@ -92,10 +90,29 @@ public class CosManager {
         //    "rule": "imageMogr2/format/webp"
         //}]
         //}
-        //其实我们上面的操作都是再构建这么一个规则
+        //其实我们上面的操作都是在构建这么一个规则
+        ruleList.add(rule1);
 
+        // 缩略图处理
+        if(file.length() > 2*1024){
+            //如果上传的图片本身就比较小‌，缩略图反而比压缩图更大，还不如不缩‍略！仅对 > 20 KB 的图片生‍成缩略图
+            PicOperations.Rule rule2 = new PicOperations.Rule();
+            rule2.setBucket(cosClientConfig.getBucket());
+            String thumbnailKey = FileUtil.mainName(key) + "_thumbnail."+FileUtil.getSuffix(key);
+            rule2.setFileId(thumbnailKey);
+            // 缩放规则 /thumbnail/<Width>x<Height>>（如果大于原图宽高，则不处理）
+            rule2.setRule(String.format("imageMogr2/thumbnail/%sx%s>", 256, 256));
+            ruleList.add(rule2);
+        }
+
+        picOperations.setRules(ruleList);
         //构造处理参数
         putObjectRequest.setPicOperations(picOperations);
         return cosClient.putObject(putObjectRequest);
+    }
+
+
+    public void deleteObject(String key){
+        cosClient.deleteObject(cosClientConfig.getBucket(), key);
     }
 }

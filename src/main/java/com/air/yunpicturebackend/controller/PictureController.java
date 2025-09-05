@@ -144,6 +144,8 @@ public class PictureController {
         // 操作数据库，把对应的图片删除掉，逻辑删除
         boolean result = pictureService.removeById(id);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        // 删除 cos 中的图片文件
+        pictureService.deletePicture(oldPicture);
         return ResultUtils.success(true);
     }
 

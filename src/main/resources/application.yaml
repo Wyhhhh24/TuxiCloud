@@ -2,6 +2,10 @@ server:
   port: 8123
   servlet:
     context-path: /api
+    # cookie 30 天过期
+    session:
+      cookie:
+        max-age: 2592000
 spring:
   application:
     name: yun-picture-backend
@@ -10,6 +14,11 @@ spring:
   servlet:
     multipart:
       max-file-size: 10MB  #Spring 默认上传的文件大小是 1MB，这里需要进行重新配置，开放更大的上传体积
+  # session 配置
+  session:
+    store-type: redis
+    # 30天过期
+    timeout: 2592000
 
 
   #数据库配置

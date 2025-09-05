@@ -2,11 +2,13 @@ package com.air.yunpicturebackend.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.StrUtil;
 import com.air.yunpicturebackend.exception.BusinessException;
 import com.air.yunpicturebackend.exception.ErrorCode;
 import com.air.yunpicturebackend.exception.ThrowUtils;
+import com.air.yunpicturebackend.manager.CosManager;
 import com.air.yunpicturebackend.manager.FileService;
 import com.air.yunpicturebackend.manager.upload.FilePictureUpload;
 import com.air.yunpicturebackend.manager.upload.PictureUploadTemplate;
@@ -33,6 +35,8 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -61,6 +65,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
 
     @Resource
     private UrlPictureUpload urlPictureUpload;
+    @Autowired
+    private CosManager cosManager;
 
 
     /**
@@ -137,6 +143,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         }
         //更新或者新增都要保存到数据库
         boolean result = saveOrUpdate(picture);
+        // todo 如果是更新也得要删除 cos 中的图片文件
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR,"图片上传失败，数据库操作失败");
 
         //返回VO对象
@@ -218,6 +225,30 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             }
         }
         return uploadCount;
+    }
+
+
+    /**
+     * 清理图片文件
+     * todo 待使用，了解Async注解
+     */
+    @Async
+    @Override
+    public void deletePicture(Picture picture) {
+        //判断该图片的 url 在其它记录中是否有被使用，避免多条记录引用同一张图片相同的 url ，图片秒传场景就会出现这种情况
+        String pictureUrl = picture.getUrl();
+        Long count = lambdaQuery().eq(Picture::getUrl, pictureUrl).count();
+        if(count > 1L){
+            //有不止一条记录用到了该图片，不清理
+            return;
+        }
+        cosManager.deleteObject(FileUtil.getName(pictureUrl));
+        //清理缩略图
+        String thumbnailUrl = picture.getThumbnailUrl();
+        if(StrUtil.isNotBlank(thumbnailUrl)){
+            cosManager.deleteObject(FileUtil.getName(thumbnailUrl));
+        }
+
     }
 
 

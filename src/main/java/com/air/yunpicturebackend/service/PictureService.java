@@ -91,4 +91,11 @@ public interface PictureService extends IService<Picture> {
             PictureUploadByBatchRequest pictureUploadByBatchRequest,
             User loginUser
     );
+
+
+    /**
+     * 清理图片文件
+     * @param picture
+     */
+    void deletePicture(Picture picture);
 }
