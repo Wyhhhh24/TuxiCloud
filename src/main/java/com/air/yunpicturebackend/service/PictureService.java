@@ -1,9 +1,6 @@
 package com.air.yunpicturebackend.service;
 
-import com.air.yunpicturebackend.model.dto.picture.PictureQueryRequest;
-import com.air.yunpicturebackend.model.dto.picture.PictureReviewRequest;
-import com.air.yunpicturebackend.model.dto.picture.PictureUploadByBatchRequest;
-import com.air.yunpicturebackend.model.dto.picture.PictureUploadRequest;
+import com.air.yunpicturebackend.model.dto.picture.*;
 import com.air.yunpicturebackend.model.entity.Picture;
 import com.air.yunpicturebackend.model.entity.User;
 import com.air.yunpicturebackend.model.vo.PictureVO;
@@ -33,6 +30,7 @@ public interface PictureService extends IService<Picture> {
                             PictureUploadRequest pictureUploadRequest,
                             User loginUser);
 
+
     /**
      * 获取查询条件
      * 通过 PictureQueryRequest ，构造 QueryWrapper 条件
@@ -40,6 +38,7 @@ public interface PictureService extends IService<Picture> {
      * @return
      */
     QueryWrapper<Picture> getQueryWrapper(PictureQueryRequest pictureQueryRequest);
+
 
     /**
      * 获取图片封装
@@ -94,8 +93,33 @@ public interface PictureService extends IService<Picture> {
 
 
     /**
-     * 清理图片文件
+     * 删除图片
+     * @param pictureId
+     * @param loginUser
+     */
+    void deletePicture(long pictureId, User loginUser);
+
+    /**
+     * 清理 cos 中的图片文件
      * @param picture
      */
-    void deletePicture(Picture picture);
+    void clearPictureFile(Picture picture);
+
+
+    /**
+     * 编辑图片
+     * @param pictureEditRequest
+     * @param loginUser
+     */
+    void editPicture(PictureEditRequest pictureEditRequest, User loginUser);
+
+    /**
+     * 公共的权限校验方法
+     * 校验空间图片的权限
+     * 删除图片和修改空间图片的权限是一样的，因为我们都是仅本人仅空间创建人才能修改，我们还要区分是公共图库还是私有空间
+     * 公共图库的话是系统管理员也能改
+     * 校验当前登录用户能不能看到这张图片
+     */
+    void checkPictureAuth(User loginUser, Picture picture);
+
 }

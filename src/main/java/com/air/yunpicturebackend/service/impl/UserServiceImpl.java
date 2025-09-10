@@ -3,7 +3,9 @@ package com.air.yunpicturebackend.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ObjUtil;
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import com.air.yunpicturebackend.constant.CommonConstant;
 import com.air.yunpicturebackend.exception.BusinessException;
 import com.air.yunpicturebackend.exception.ErrorCode;
 import com.air.yunpicturebackend.model.dto.user.UserQueryRequest;
@@ -47,42 +49,49 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
      */
     @Override
     public long userRegister(String userAccount, String userPassword, String checkPassword) {
-        // 1. 校验
+        // 1. 校验参数
         if (StrUtil.hasBlank(userAccount, userPassword, checkPassword)) {
             //检测多个字符串中是否存在空值或空白字符
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数为空");
         }
         if (userAccount.length() < 4) {
+            //账号长度需要大于 4
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户账号过短");
         }
         if (userPassword.length() < 6 || checkPassword.length() < 6) {
+            //密码长度需要大于 6
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户密码过短");
         }
         if (!userPassword.equals(checkPassword)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "两次输入的密码不一致");
         }
-        // 2. 检查用户账号是否和数据库中已有的重复
+
+        // 2. 检查用户账号是否和数据库中已有用户的账号重复，账号不能重复
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("userAccount", userAccount);
         long count = this.baseMapper.selectCount(queryWrapper);
         if (count > 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号重复");
         }
-        // 3. 加密，MD5加密算法
+
+        // 3.对用户密码进行加密，MD5加密算法，不可逆转
         String encryptPassword = getEncryptPassword(userPassword);
+
         // 4. 插入数据到数据库中
         User user = new User();
         user.setUserAccount(userAccount);
         user.setUserPassword(encryptPassword);
-        user.setUserName("无名"); //默认用户名为无名
-        user.setUserRole(UserRoleEnum.USER.getValue());
+        user.setUserName(getRandomNickName());  //随机设置一个用户名
+        user.setUserRole(UserRoleEnum.USER.getValue()); //默认权限为用户
+        user.setUserAvatar(CommonConstant.USER_AVATAR); //默认头像
         boolean saveResult = this.save(user);
         if (!saveResult) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "注册失败，数据库错误");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "注册失败，操作错误");
         }
-        //主键回填
+        //主键回填，默认情况下新增数据时会自动实现主键回填
         return user.getId();
     }
+
 
     /**
      * 对密码进行加密
@@ -92,10 +101,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
      */
     @Override
     public String getEncryptPassword(String userPassword) {
-        // 盐值，混淆密码
+        // 盐值，混淆密码，MD5 加密（加盐）的方式是单向哈希，不可逆性，不能转换回原来的密码
         final String SALT = "airWyh";
         return DigestUtils.md5DigestAsHex((SALT + userPassword).getBytes());
     }
+
 
     /**
      * 用户登录
@@ -107,7 +117,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
      */
     @Override
     public LoginUserVO userLogin(String userAccount, String userPassword, HttpServletRequest request) {
-        // 1. 基本的校验
+        // 1. 基本参数校验
         if (StrUtil.hasBlank(userAccount, userPassword)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数为空");
         }
@@ -117,13 +127,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (userPassword.length() < 6) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码错误");
         }
+
         //2.查询用户是否存在，直接拿账号密码去查
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<User>()
                 .eq(User::getUserAccount, userAccount)
                 .eq(User::getUserPassword, getEncryptPassword(userPassword));
         User user = getOne(wrapper);
         if (user == null) {
-            log.info("用户登录失败, 用户账号和密码不匹配");
+            log.info("登录失败, 用户不存在或密码错误");
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在或密码错误");
         }
 
@@ -132,7 +143,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         //可以把上述的 Session 理解为一个 Map，可以给 Map 设置 key 和 value，
         //每个不同的 SessionID 对应的 Session 存储都是不同的不用担心会污染，
         //所以上述代码中，给 Session 设置了固定的 key（USER_LOGIN_STATE），可以将这个 key 值提取为常量，便于后续获取。
-        //TODO session的获取
+        //TODO session的设置
 
         return getLoginUserVO(user);
     }
@@ -175,7 +186,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     /**
-     * 获取当前登录用户
+     * 通过 session 获取当前登录用户
      *
      * @param request
      * @return
@@ -247,7 +258,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
 
     /**
-     * 判断是否为管理员
+     * 判断用户是否为管理员
      *
      * @param user
      * @return
@@ -256,6 +267,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public boolean isAdmin(User user) {
         return user != null && UserRoleEnum.ADMIN.getValue().equals(user.getUserRole());
     }
+
+    /**
+     * 随机获取用户昵称
+     */
+    public String getRandomNickName(){
+        List<String> userNickName = CommonConstant.USER_NICK_NAME_PREFIX;
+        int index = RandomUtil.randomInt(0, userNickName.size());
+        return userNickName.get(index);
+    }
+
 
 }
 

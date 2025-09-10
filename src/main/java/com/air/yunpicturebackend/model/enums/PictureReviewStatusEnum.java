@@ -4,9 +4,9 @@ import com.air.yunpicturebackend.model.entity.Picture;
 import lombok.Data;
 import lombok.Getter;
 
+
 /**
- * @author WyH524
- * @since 2025/9/1 下午2:39
+ * 图片的审核状态
  */
 @Getter
 public enum PictureReviewStatusEnum {

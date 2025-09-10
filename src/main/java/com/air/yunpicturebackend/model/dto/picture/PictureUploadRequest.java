@@ -23,6 +23,12 @@ public class PictureUploadRequest implements Serializable {
      */
     private String picName;
 
+    /**
+     * 空间id
+     * 我们之前上传图片是不区分上传到哪个空间的，现在用户有了自己的空间，上传图片的时候可以指定空间Id了
+     */
+    private Long spaceId;
+
 
     private static final long serialVersionUID = 1L;
 }

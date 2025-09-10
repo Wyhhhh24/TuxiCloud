@@ -18,6 +18,7 @@ public class ThrowUtils {
 
     public static void throwIf(boolean condition, ErrorCode errorCode) {
         throwIf(condition, new BusinessException(errorCode));
+                        // BusinessException 继承了 RuntimeException
     }
 
     public static void throwIf(boolean condition, ErrorCode errorCode,String message) {

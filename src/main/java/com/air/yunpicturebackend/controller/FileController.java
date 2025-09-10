@@ -96,6 +96,7 @@ public class FileController {
             response.getOutputStream().write(bytes);
             // 缓冲区不是直接返回的，而是得要刷新才能返回，把内容刷新到响应体中
             response.getOutputStream().flush();
+
         } catch (Exception e) {
             log.error("file download error, filepath = " + filepath, e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "下载失败");

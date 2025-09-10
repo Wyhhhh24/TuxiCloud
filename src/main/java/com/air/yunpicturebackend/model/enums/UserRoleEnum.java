@@ -4,8 +4,6 @@ import cn.hutool.core.util.ObjUtil;
 import lombok.Getter;
 
 /**
- * @author WyH524
- * @since 2025/8/28 下午2:11
  * 用户角色枚举
  */
 @Getter

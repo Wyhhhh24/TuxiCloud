@@ -11,6 +11,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Slf4j
 public class GlobalExceptionHandler {
 
+    // BusinessException 继承自 RuntimeException，因此它属于 "运行时异常" 的一种。
+    // 但 @ExceptionHandler 会优先匹配 最具体的异常类型（即 BusinessException），而不是父类 RuntimeException。
+    // 虽然 BusinessException 是 RuntimeException 的子类，但异常处理机制会优先匹配具体子类
+
+
     //对任何的业务异常进行处理
     //只要在项目中任何一个方法中抛出BusinessException异常，都会被我们的环绕切面给捕获到
     //然后我们就可以在这个方法里去写怎么处理这个异常

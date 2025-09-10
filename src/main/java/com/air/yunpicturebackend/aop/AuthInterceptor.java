@@ -38,33 +38,33 @@ public class AuthInterceptor {
     //这是一个切点，就是你想要在哪些地方去执行这里面的代码
     @Around("@annotation(authCheck)")
     public Object doInterceptor(ProceedingJoinPoint joinPoint, AuthCheck authCheck) throws Throwable {
-        //可以通过这个 joinPoint 来知道我们到底对哪个方法进行了拦截  authCheck 这是我们刚刚自己定义的注解
-        //我们可以通过这样一个写法，得到接口上我们设置的允许什么角色访问这个接口
+        // 可以通过这个 joinPoint 来知道我们到底对哪个方法进行了拦截  authCheck 这是我们刚刚自己定义的注解
+        // 1. 我们可以通过这样一个写法，得到接口上我们设置的允许什么角色访问这个接口
         String mustRole = authCheck.mustRole();
 
-        //可以通过这样一个全局的上下文，可以得到当前这个请求所有的属性
-        //获取当前HTTP请求的HttpServletRequest对象
-        //从而让你能够在应用的任何地方（如Service层、工具类等）访问当前请求的详细信息（如参数、头信息、Session等）
-        //而不仅限于Controller层，可以自行构建
+        // 可以通过这样一个全局的上下文，可以得到当前这个请求所有的属性
+        // 获取当前HTTP请求的HttpServletRequest对象
+        // 从而让你能够在应用的任何地方（如Service层、工具类等）访问当前请求的详细信息（如参数、头信息、Session等）
+        // 而不仅限于Controller层，可以自行构建
         RequestAttributes requestAttributes = RequestContextHolder.currentRequestAttributes();
         HttpServletRequest request = ((ServletRequestAttributes) requestAttributes).getRequest();
 
-        //获取当前登录用户
-        //得到登录用户的信息，这个方法里面有校验你是否登录的逻辑，所以我们现在自定义的注解也就校验了你是否登录
-        //也就是，如果你为接口添加了这个注解，就证明这个接口是需要登录才可以访问的
+        // 2.获取当前登录用户
+        // 得到登录用户的信息，这个方法里面有校验你是否登录的逻辑，所以我们现在自定义的注解也就校验了你是否登录
+        // 也就是，如果你为接口添加了这个注解，就证明这个接口是需要登录才可以访问的
         User loginUser = userService.getLoginUser(request);
 
-        //根据 value 值获取对应的枚举，也就是获取当前这个接口允许哪位角色访问
+        // 3.获取当前这个接口允许哪位角色访问，根据 value 值获取对应的枚举
         UserRoleEnum mustRoleEnum = UserRoleEnum.getEnumByValue(mustRole);
 
-        // 如果返回的枚举为空，也就是所加注解的接口上，不是我们需要我们进行权限控制，而只是登录校验
+        // 如果返回的枚举为空，也就是所加注解的接口上，不是我们需要我们进行权限控制，前面一步进行了登录验证，所以加这个注解就是为了验证是否登录
         if (mustRoleEnum == null) {
             //直接放行
             return joinPoint.proceed();
         }
 
         // 所加注解的方法必须有对应权限才通过
-        // 获取当前用户具有的权限
+        // 4.获取当前用户具有的权限
         UserRoleEnum userRoleEnum = UserRoleEnum.getEnumByValue(loginUser.getUserRole());
 
         // 该接口需要对应权限的用户访问，但是现在访问的用户没有权限

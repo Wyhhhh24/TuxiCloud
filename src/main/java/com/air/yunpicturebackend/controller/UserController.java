@@ -32,15 +32,16 @@ public class UserController {
     private UserService userService;
 
     /**
+     * todo 可对登录、注册方式进行扩展，qq登录
      * 用户注册
      * @param userRegisterRequest
      * @return
      */
     //@AuthCheck(mustRole = UserConstant.ADMIN_ROLE)  //用户必须要有管理员权限，才可以执行这个方法，否则抛异常
-    @AuthCheck //这个接口也是必须要登录的
+    @AuthCheck //需要进行登录验证
     @PostMapping("/register")
     public BaseResponse<Long> userRegister(@RequestBody UserRegisterRequest userRegisterRequest) {
-        //如果传过来的直接就是空的，直接抛出异常
+        //参数判断
         ThrowUtils.throwIf(userRegisterRequest == null, ErrorCode.PARAMS_ERROR);
 
         long userId = userService.userRegister(userRegisterRequest.getUserAccount(),
@@ -50,6 +51,7 @@ public class UserController {
         return ResultUtils.success(userId);
     }
 
+
     /**
      * 用户登录
      * @param userLoginRequest
@@ -58,7 +60,9 @@ public class UserController {
      */
     @PostMapping("/login")
     public BaseResponse<LoginUserVO> userLogin(@RequestBody UserLoginRequest userLoginRequest, HttpServletRequest request){
+        //参数判断
         ThrowUtils.throwIf(userLoginRequest == null, ErrorCode.PARAMS_ERROR);
+
         LoginUserVO loginUserVO = userService.userLogin(userLoginRequest.getUserAccount(),
                 userLoginRequest.getUserPassword(),
                 request);
