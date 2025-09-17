@@ -8,8 +8,8 @@ import java.io.Serializable;
 /**
  * @author WyH524
  * @since 2025/8/26 下午3:43
+ * 响应工具类
  */
-//响应工具类
 public class ResultUtils implements Serializable {
 
     /**

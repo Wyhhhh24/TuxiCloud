@@ -2,8 +2,14 @@ package com.air.yunpicturebackend.controller;
 
 import ch.qos.logback.core.util.TimeUtil;
 import cn.hutool.core.util.RandomUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.air.yunpicturebackend.annotation.AuthCheck;
+import com.air.yunpicturebackend.api.aliyunai.AliYunAiApi;
+import com.air.yunpicturebackend.api.aliyunai.model.CreateOutPaintingTaskResponse;
+import com.air.yunpicturebackend.api.aliyunai.model.GetOutPaintingTaskResponse;
+import com.air.yunpicturebackend.api.imageSearch.ImageSearchApiFacade;
+import com.air.yunpicturebackend.api.imageSearch.model.ImageSearchResult;
 import com.air.yunpicturebackend.common.BaseResponse;
 import com.air.yunpicturebackend.common.DeleteRequest;
 import com.air.yunpicturebackend.common.ResultUtils;
@@ -58,6 +64,9 @@ public class PictureController {
 
     @Resource
     private SpaceService spaceService;
+
+    @Resource
+    private AliYunAiApi aliYunAiApi;
 
 
     /**
@@ -147,17 +156,17 @@ public class PictureController {
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> updatePicture(@RequestBody PictureUpdateRequest pictureUpdateRequest
             , HttpServletRequest httpServletRequest) {
-
+        // 1. 校验参数
         if (pictureUpdateRequest == null || pictureUpdateRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
 
-        // 判断要修改的图片是否存在
+        // 2.判断要修改的图片是否存在
         long id = pictureUpdateRequest.getId();
         Picture oldPicture = pictureService.getById(id);
-        ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR, "不存在该图片，修改失败");
+        ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR, "该图片不存在，修改失败");
 
-        // 将实体类和 DTO 进行转换
+        // 3.将实体类和 DTO 进行转换
         Picture picture = new Picture();
         BeanUtils.copyProperties(pictureUpdateRequest, picture);
         // 注意将 list 转为 string
@@ -195,25 +204,24 @@ public class PictureController {
 
     /**
      * 根据 id 获取图片封装类（包含用户信息）
-     * TODO 这个方法用户是可以访问的，如果用户传入了一个未审核通过的图片id，也是可以获取到的，这里没有添加判断逻辑
      */
     @GetMapping("/get/vo")
     public BaseResponse<PictureVO> getPictureVOById(long id, HttpServletRequest request) {
+        // 1.校验参数
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR, "图片 id 不存在");
-        // 查询数据库
-        Picture picture = pictureService.getById(id);
-        ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR, "未查询到该图片");
-        //权限校验，我们查出图片之后呢，校验它的这个图片所属的空间是不是你有权限的空间
-        //判断是不是公共图库的图片
-        //加了私有空间之后，假如我想强行访问别人的图片，我们得要进行判断，如果是别人空间的图片是不可以访问的
+        User loginUser = userService.getLoginUser(request);
+        // 2.查询数据库，只从审核通过的图片中进行查询
+        Picture picture = pictureService.lambdaQuery().eq(Picture::getReviewStatus, PictureReviewStatusEnum.PASS.getValue())
+                .eq(Picture::getId, id).one();
+        ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR, "该图片不存在");
+        // 3.判断是不是公共图库中的图片，如果是私有图片得要判断当前用户有没有权限操作该图片
         Long spaceId = picture.getSpaceId();
         if (spaceId != null) {
-            //私有的图片才需要进行校验
-            User loginUser = userService.getLoginUser(request);
+            // 私有图片需要进行权限校验
             pictureService.checkPictureAuth(loginUser, picture);
         }
-        // 获取封装类
-        return ResultUtils.success(pictureService.getPictureVO(picture, request));
+        // 4.返回封装类
+        return ResultUtils.success(pictureService.getPictureVO(picture, loginUser));
     }
 
 
@@ -271,6 +279,46 @@ public class PictureController {
 
         // 获取封装类，获取 Page<PictureVO> 对象
         return ResultUtils.success(pictureService.getPictureVOPage(picturePage, request));
+    }
+
+    /**
+     * 以图搜图
+     * 经过测试发؜现，百度搜索对于 webp 格式图片的支‌持度并不好（改文件的后缀也没有用），估计‍是平台不支持该格式的算法
+     * 但是使用 png 图片去测试，就能正常看到结果了
+     * 解决 webp 格式图片无法搜索的问题
+     * 如果想解决上述问题，有几种方案：
+     *
+     * 直接在前端拿到识图结果 URL 后，直接新页面打开，而不是把识图结果放到自己的网站页面中
+     * 切换为其他识图接口，比如 Bing 以图搜图 API
+     * 将本项目的图片以 PNG 格式进行压缩
+     */
+    // todo 需要完善一下为什么私人空间的有一些图片展示不出来
+    @PostMapping("/search/picture")
+    public BaseResponse<List<ImageSearchResult>> searchPictureByPicture(@RequestBody SearchPictureByPictureRequest searchPictureByPictureRequest) {
+        // 1.判断参数是否为空
+        ThrowUtils.throwIf(searchPictureByPictureRequest == null, ErrorCode.PARAMS_ERROR);
+        Long pictureId = searchPictureByPictureRequest.getPictureId();
+        ThrowUtils.throwIf(pictureId == null || pictureId <= 0, ErrorCode.PARAMS_ERROR);
+        // 2.通过 pictureId 获取图片 url
+        Picture oldPicture = pictureService.getById(pictureId);
+        ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
+        List<ImageSearchResult> resultList = ImageSearchApiFacade.searchImage(oldPicture.getUrl());
+        return ResultUtils.success(resultList);
+    }
+
+    /**
+     * 颜色搜图
+     */
+    @PostMapping("/search/color")
+    public BaseResponse<List<PictureVO>> searchPictureByColor(@RequestBody SearchPictureByColorRequest searchPictureByColorRequest ,
+                                                              HttpServletRequest  request) {
+        // 1. 校验参数
+        ThrowUtils.throwIf(searchPictureByColorRequest == null, ErrorCode.PARAMS_ERROR);
+        String picColor = searchPictureByColorRequest.getPicColor();
+        Long spaceId = searchPictureByColorRequest.getSpaceId();
+        User loginUser = userService.getLoginUser(request);
+        // 2. 调用方法
+        return ResultUtils.success(pictureService.searchPictureByColor(spaceId, picColor, loginUser));
     }
 
 
@@ -448,7 +496,7 @@ public class PictureController {
      */
     @PostMapping("/edit")
     public BaseResponse<Boolean> editPicture(@RequestBody PictureEditRequest pictureEditRequest, HttpServletRequest request) {
-        //先进行判空
+        // 1.参数校验
         if (pictureEditRequest == null || pictureEditRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -474,6 +522,7 @@ public class PictureController {
         return ResultUtils.success(pictureTagCategory);
     }
 
+
     /**
      * 图片审核（管理员使用）
      * 我们还要对用户检索图片的范围进行限制，只能让它看到审核通过的数据
@@ -483,10 +532,55 @@ public class PictureController {
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> doPictureReview(@RequestBody PictureReviewRequest pictureReviewRequest,
                                                  HttpServletRequest request) {
-        //1.校验参数
+        // 1.校验参数
         ThrowUtils.throwIf(pictureReviewRequest == null, ErrorCode.PARAMS_ERROR);
         User loginUser = userService.getLoginUser(request);
         pictureService.doPictureReview(pictureReviewRequest, loginUser);
         return ResultUtils.success(true);
+    }
+
+
+    /**
+     * 批量编辑图片
+     */
+    @PostMapping("/edit/batch")
+    public BaseResponse<Boolean> editPictureByBatch(@RequestBody PictureEditByBatchRequest pictureEditByBatchRequest, HttpServletRequest request) {
+        //1.校验参数
+        ThrowUtils.throwIf(pictureEditByBatchRequest == null, ErrorCode.PARAMS_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        pictureService.editPictureByBatch(pictureEditByBatchRequest, loginUser);
+        return ResultUtils.success(true);
+    }
+
+
+    /**
+     * 创建 AI 扩图任务
+     * ai扩图图片的大小也是有限制的
+     * 官方文档中：
+     * 图像大小：不超过10MB。
+     * 图像分辨率：不低于512×512像素且不超过4096×4096像素。
+     * todo 异步任务优化
+     */
+    @PostMapping("/out_painting/create_task")
+    public BaseResponse<CreateOutPaintingTaskResponse> createPictureOutPaintingTask(
+            @RequestBody CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest,
+            HttpServletRequest request) {
+        // 1.校验参数
+        if (createPictureOutPaintingTaskRequest == null || createPictureOutPaintingTaskRequest.getPictureId() == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User loginUser = userService.getLoginUser(request);
+        CreateOutPaintingTaskResponse response = pictureService.createPictureOutPaintingTask(createPictureOutPaintingTaskRequest, loginUser);
+        return ResultUtils.success(response);
+    }
+
+    /**
+     * 查询 AI 扩图任务
+     */
+    @GetMapping("/out_painting/get_task")
+    public BaseResponse<GetOutPaintingTaskResponse> getPictureOutPaintingTask(String taskId) {
+        ThrowUtils.throwIf(StrUtil.isBlank(taskId), ErrorCode.PARAMS_ERROR);
+        GetOutPaintingTaskResponse task = aliYunAiApi.getOutPaintingTask(taskId);
+        return ResultUtils.success(task);
     }
 }

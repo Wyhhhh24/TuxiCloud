@@ -16,20 +16,20 @@ public class PictureEditRequest implements Serializable {
     /**  
      * 图片名称  
      */  
-    private String name;  
+    private String name;
   
     /**  
-     * 简介  
+     * 图片简介
      */  
     private String introduction;
   
     /**  
-     * 分类  
+     * 图片分类
      */  
     private String category;  
   
     /**  
-     * 标签  
+     * 图片标签
      */  
     private List<String> tags;
   

@@ -6,8 +6,8 @@ import lombok.Data;
 /**
  * @author WyH524
  * @since 2025/8/26 下午3:58
+ * 全局响应封装类
  */
-//全局响应封装类
 @Data
 public class BaseResponse<T> {
 

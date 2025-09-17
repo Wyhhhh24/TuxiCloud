@@ -41,8 +41,9 @@ public class FileController {
     @PostMapping("/test/upload")            //接收前端表单传过来的文件，表单参数名称“file”
     public BaseResponse<String> testUploadFile(@RequestPart("file") MultipartFile multipartFile) {
         // 得到最终要存储的文件地址，像： /test/example.jpg
-        String filename = multipartFile.getOriginalFilename();
+        String filename = multipartFile.getOriginalFilename(); //得到文件的原始文件名
         String filepath = String.format("/test/%s", filename);
+
         File file = null;
         try {
             // 上传文件

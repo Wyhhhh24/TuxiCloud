@@ -10,7 +10,7 @@ import lombok.Data;
 public class UploadPictureResult {  
   
     /**  
-     * 图片地址  
+     * 图片地址（填充的是压缩图的url了）
      */  
     private String url;
 
@@ -19,10 +19,15 @@ public class UploadPictureResult {
      */
     private String thumbnailUrl;
 
+    /**
+     * 图片主色调
+     */
+    private String picColor;
+
     /**  
      * 图片名称（图片的原始名称）
      */  
-    private String picName;  
+    private String picName;
   
     /**  
      * 文件大小
@@ -32,7 +37,7 @@ public class UploadPictureResult {
     /**  
      * 图片宽度  
      */  
-    private int picWidth;  
+    private int picWidth;
   
     /**  
      * 图片高度  
@@ -42,7 +47,7 @@ public class UploadPictureResult {
     /**  
      * 图片宽高比  
      */  
-    private Double picScale;  
+    private Double picScale;
   
     /**  
      * 图片格式  

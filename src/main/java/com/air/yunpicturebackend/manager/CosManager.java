@@ -1,8 +1,6 @@
 package com.air.yunpicturebackend.manager;
-
 import cn.hutool.core.io.FileUtil;
 import com.air.yunpicturebackend.config.CosClientConfig;
-import com.air.yunpicturebackend.model.entity.Picture;
 import com.qcloud.cos.COSClient;
 import com.qcloud.cos.model.COSObject;
 import com.qcloud.cos.model.GetObjectRequest;
@@ -51,7 +49,7 @@ public class CosManager {
     public COSObject getObject(String key) {        //获取哪个存储桶中的哪个文件，这个项目中桶是固定的
         GetObjectRequest getObjectRequest = new GetObjectRequest(cosClientConfig.getBucket(), key);
         return cosClient.getObject(getObjectRequest);
-        // COSObject 对象存储的对象，我们可以从这个对象中拿到文件的流
+        // COSObject 对象存储对象，我们可以从这个对象中拿到文件的流
     }
 
 
@@ -65,7 +63,7 @@ public class CosManager {
         PutObjectRequest putObjectRequest = new PutObjectRequest(cosClientConfig.getBucket(), key, file);
                                //如果我设置的Key是这样： /public/1960965073795543041/2025-09-02_tfTDQvUcxt8q5kAn.jpg
                            // 那么最终存到cos中的文件名是：2025-09-02_tfTDQvUcxt8q5kAn.jpg
-                      // /会被视为目录分隔符，COS 控制台会按目录结构展示文件（如 public/1960965073795543041/ 是两级目录）
+                      // / 会被视为目录分隔符，COS 控制台会按目录结构展示文件（如 public/1960965073795543041/ 是两级目录）
 
         //对图片进行处理（获取图片的基本信息也被视做为一种图片的处理）
         //图片上传完成后，对象存储（Cloud Object Storage，COS）会存储原始图片和已处理过的图片。
@@ -74,8 +72,8 @@ public class CosManager {
         PicOperations picOperations = new PicOperations();
         picOperations.setIsPicInfo(1); //是否返回原图信息，0不返回原图信息，1返回原图信息，默认为0
 
-        // 添加图片处理规则
-        // 图片压缩，转成 webp 格式
+        // 一、添加图片处理规则
+        // 1.图片压缩，将原图转成 webp 格式
         String webpKey = FileUtil.mainName(key) + ".webp";
         List<PicOperations.Rule> ruleList = new LinkedList<>();
         PicOperations.Rule rule1 = new PicOperations.Rule();
@@ -90,29 +88,42 @@ public class CosManager {
         //    "rule": "imageMogr2/format/webp"
         //}]
         //}
-        //其实我们上面的操作都是在构建这么一个规则
+        //其实我们上面的 set ，都是按照上面这个规则来的
+
         ruleList.add(rule1);
 
-        // 缩略图处理
-        if(file.length() > 2*1024){
+        // 2.获取缩略图
+        // 判断文件的大小是否超过 2KB ，超过才进行缩略
+        if(file.length() > 2 * 1024){
             //如果上传的图片本身就比较小‌，缩略图反而比压缩图更大，还不如不缩‍略！仅对 > 20 KB 的图片生‍成缩略图
             PicOperations.Rule rule2 = new PicOperations.Rule();
             rule2.setBucket(cosClientConfig.getBucket());
             String thumbnailKey = FileUtil.mainName(key) + "_thumbnail."+FileUtil.getSuffix(key);
             rule2.setFileId(thumbnailKey);
-            // 缩放规则 /thumbnail/<Width>x<Height>>（如果大于原图宽高，则不处理）
+            // 缩放规则 /thumbnail/<Width>x<Height>> 将图片缩放到宽度 ≤ 256px 且高度 ≤ 256px，并保持原图比例
+            // > 表示 等比缩放，且缩放后的图片不会超过 256x256（即“限制矩形”）。
+            // 如果原图是 500x300，缩放后会是 256x153.6（保持宽高比）。
+            // 如果原图是 200x200（小于 256x256），则 不会放大，保持原尺寸。
             rule2.setRule(String.format("imageMogr2/thumbnail/%sx%s>", 256, 256));
             ruleList.add(rule2);
         }
 
+        //压缩图：强制转换为webp格式
+        //缩略图：保持与原图相同的格式
         picOperations.setRules(ruleList);
         //构造处理参数
         putObjectRequest.setPicOperations(picOperations);
+
+        // 实现文件的上传
         return cosClient.putObject(putObjectRequest);
     }
 
 
+    /**
+     * 释放 COS 中的图片资源
+     */
     public void deleteObject(String key){
         cosClient.deleteObject(cosClientConfig.getBucket(), key);
     }
+
 }

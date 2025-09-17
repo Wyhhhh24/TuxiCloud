@@ -37,8 +37,6 @@ public class UserController {
      * @param userRegisterRequest
      * @return
      */
-    //@AuthCheck(mustRole = UserConstant.ADMIN_ROLE)  //用户必须要有管理员权限，才可以执行这个方法，否则抛异常
-    @AuthCheck //需要进行登录验证
     @PostMapping("/register")
     public BaseResponse<Long> userRegister(@RequestBody UserRegisterRequest userRegisterRequest) {
         //参数判断

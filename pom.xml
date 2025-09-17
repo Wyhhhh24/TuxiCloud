@@ -65,6 +65,13 @@
             <version>4.4.0</version>
         </dependency>
 
+        <!-- Maven 示例 -->
+        <dependency>
+            <groupId>org.webjars</groupId>
+            <artifactId>bootstrap</artifactId>
+            <version>5.3.0</version>
+        </dependency>
+
         <!--  腾讯云cos      -->
         <dependency>
             <groupId>com.qcloud</groupId>

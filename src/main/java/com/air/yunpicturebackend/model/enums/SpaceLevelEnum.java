@@ -26,7 +26,7 @@ public enum SpaceLevelEnum {
     private final long maxCount;
 
     /**
-     * 最大存储的总大小
+     * 最大存储图片的总大小
      */
     private final long maxSize;
 

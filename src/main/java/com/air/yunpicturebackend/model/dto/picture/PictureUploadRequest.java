@@ -14,12 +14,12 @@ public class PictureUploadRequest implements Serializable {
     private Long id;
 
     /**
-     * 上传图片的 url
+     * 上传图片的 url ，这个参数在上传图片的时候是为 null 的，只有在通过 url 上传图片才不为 null
      */
     private String fileUrl;
 
     /**
-     * 图片名称
+     * 图片名称，这里是用户指定的图片名称
      */
     private String picName;
 

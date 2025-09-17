@@ -56,11 +56,11 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
         //1.填充参数默认值
         Space space = BeanUtil.copyProperties(spaceAddRequest, Space.class);
         if(StrUtil.isBlank(space.getSpaceName())){
-            //如果未传空间名称，就设置默认值
-            space.setSpaceName("默认空间");
+            //如果未传空间名称，就设置默认空间名
+            space.setSpaceName(loginUser.getUserName()+"的空间");
         }
         if(space.getSpaceLevel() == null){
-            //如果未指定空间级别默认就是普通空间
+            //如果未指定空间级别，级别就设置为普通空间级别
             space.setSpaceLevel(SpaceLevelEnum.COMMON.getValue());
         }
         //根据空间级别填充限额信息
@@ -118,9 +118,8 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
         SpaceLevelEnum enumByValue = SpaceLevelEnum.getEnumByValue(space.getSpaceLevel());
 
         if(enumByValue != null){
-            // 如果这个方法是管理员调用的话，它在填充space对象的时候，既指定了空间级别，又指定了空间容量的话
+            // 如果这个方法是管理员调用的时候，管理员指定了空间的限额，填充space对象时
             // 应该先以管理员所设置的值为主
-            // 空间容量到底是使用管理员指定的，还是系统默认的
             // 只有管理员没有设置这些值的时候，我们才根据默认级别设置默认值
             // 便于系统进行扩展
             if(space.getMaxCount() == null){

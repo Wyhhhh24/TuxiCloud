@@ -1,5 +1,6 @@
 package com.air.yunpicturebackend.service;
 
+import com.air.yunpicturebackend.api.aliyunai.model.CreateOutPaintingTaskResponse;
 import com.air.yunpicturebackend.model.dto.picture.*;
 import com.air.yunpicturebackend.model.entity.Picture;
 import com.air.yunpicturebackend.model.entity.User;
@@ -7,9 +8,11 @@ import com.air.yunpicturebackend.model.vo.PictureVO;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 /**
 * @author 30280
@@ -44,10 +47,10 @@ public interface PictureService extends IService<Picture> {
      * 获取图片封装
      * 编写获؜取图片封装的方法，可以为原有的图片关‌联创建用户的信息
      * @param picture
-     * @param request
+     * @param loginUser
      * @return
      */
-    PictureVO getPictureVO(Picture picture, HttpServletRequest request);
+    PictureVO getPictureVO(Picture picture, User loginUser);
 
 
     /**
@@ -80,6 +83,15 @@ public interface PictureService extends IService<Picture> {
     void fillReviewParams(Picture picture, User loginUser);
 
     /**
+     * AI 扩图
+     * @param createPictureOutPaintingTaskRequest
+     * @param loginUser
+     * @return
+     */
+    CreateOutPaintingTaskResponse createPictureOutPaintingTask(CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest,
+                                                               User loginUser);
+
+    /**
      * 批量抓取和创建图片
      *
      * @param pictureUploadByBatchRequest
@@ -91,6 +103,14 @@ public interface PictureService extends IService<Picture> {
             User loginUser
     );
 
+
+    /**
+     * 批量编辑图片
+     * @param pictureEditByBatchRequest
+     * @param loginUser
+     */
+    @Transactional(rollbackFor = Exception.class)
+    void editPictureByBatch(PictureEditByBatchRequest pictureEditByBatchRequest, User loginUser);
 
     /**
      * 删除图片
@@ -121,5 +141,14 @@ public interface PictureService extends IService<Picture> {
      * 校验当前登录用户能不能看到这张图片
      */
     void checkPictureAuth(User loginUser, Picture picture);
+
+
+    /**
+     * 对哪个空间进行搜索，空间id
+     * 用户要搜索图片的颜色色值，十六进制
+     * 记录谁来查询，校验空间权限
+     * 返回值就是查到的图片列表
+     */
+    List<PictureVO> searchPictureByColor(Long spaceId , String picColor,User loginUser);
 
 }

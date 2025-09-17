@@ -95,3 +95,7 @@ ALTER TABLE picture
 -- 创建索引
 CREATE INDEX idx_spaceId ON picture (spaceId);
 -- 由于一张图片؜只能属于一个空间，可以在图片表 picture ‌中新增字段 spaceId，实现图片与空间的关联‍，同时增加索引以提高查询性能。
+
+-- 添加图片主色调
+ALTER TABLE picture
+    ADD COLUMN picColor varchar(16) null comment '图片主色调';

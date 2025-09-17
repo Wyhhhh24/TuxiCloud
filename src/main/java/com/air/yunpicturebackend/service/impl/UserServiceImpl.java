@@ -83,7 +83,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         user.setUserPassword(encryptPassword);
         user.setUserName(getRandomNickName());  //随机设置一个用户名
         user.setUserRole(UserRoleEnum.USER.getValue()); //默认权限为用户
-        user.setUserAvatar(CommonConstant.USER_AVATAR); //默认头像
+        user.setUserAvatar(CommonConstant.USER_AVATAR_URL); //默认头像
         boolean saveResult = this.save(user);
         if (!saveResult) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "注册失败，操作错误");
@@ -193,17 +193,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
      */
     @Override
     public User getLoginUser(HttpServletRequest request) {
-        // 先判断是否已登录
+        // 1.从 session 中获取当前的登录用户信息
         Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
         User currentUser = (User) userObj;
         if (currentUser == null || currentUser.getId() == null) {
-            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR,"用户未登录");
         }
         // 从数据库查询（追求性能的话可以注释，直接返回上述结果）
         long userId = currentUser.getId();
         currentUser = getById(userId);
         if (currentUser == null) {
-            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR,"该用户不存在");
         }
         return currentUser;
     }
