@@ -5,7 +5,9 @@ import lombok.Data;
 import org.springframework.beans.BeanUtils;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 /**
  * 空间的返回类，返回给用户空间信息的时候，还可以返回给用户一些额外的信息，比如说这个空间所属用户的信息
@@ -27,6 +29,17 @@ public class SpaceVO implements Serializable {
      * 空间级别：0-普通版 1-专业版 2-旗舰版
      */
     private Integer spaceLevel;
+
+    /**
+     * 空间类型：0-私有 1-团队
+     */
+    private Integer spaceType;
+
+    /**
+     * 权限列表
+     */
+    private List<String> permissionList = new ArrayList<>();
+
 
     /**
      * 空间图片的最大总大小

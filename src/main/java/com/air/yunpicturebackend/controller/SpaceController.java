@@ -10,18 +10,24 @@ import com.air.yunpicturebackend.constant.UserConstant;
 import com.air.yunpicturebackend.exception.BusinessException;
 import com.air.yunpicturebackend.exception.ErrorCode;
 import com.air.yunpicturebackend.exception.ThrowUtils;
+import com.air.yunpicturebackend.manager.auth.SpaceUserAuthManager;
 import com.air.yunpicturebackend.model.dto.space.*;
 import com.air.yunpicturebackend.model.entity.Space;
+import com.air.yunpicturebackend.model.entity.SpaceUser;
 import com.air.yunpicturebackend.model.entity.User;
 import com.air.yunpicturebackend.model.enums.SpaceLevelEnum;
+import com.air.yunpicturebackend.model.enums.SpaceTypeEnum;
 import com.air.yunpicturebackend.model.vo.SpaceVO;
 import com.air.yunpicturebackend.service.SpaceService;
+import com.air.yunpicturebackend.service.SpaceUserService;
 import com.air.yunpicturebackend.service.UserService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.util.DigestUtils;
@@ -51,10 +57,16 @@ public class SpaceController {
     @Resource
     private SpaceService spaceService;
 
+    @Resource
+    private SpaceUserService spaceUserService;
+
+
+    @Resource
+    private SpaceUserAuthManager spaceUserAuthManager;
+
     /**
      * 创建空间
      * 用户可以自主创建私有空间，但是必须要加限制，最多只能创建一个
-     *
      */
     @PostMapping("/add")
     public BaseResponse<Long> addSpace(@RequestBody SpaceAddRequest spaceAddRequest, HttpServletRequest request){
@@ -87,11 +99,13 @@ public class SpaceController {
         ThrowUtils.throwIf(oldSpace == null, ErrorCode.NOT_FOUND_ERROR,"空间不存在");
 
         // 4.权限校验，仅本人或管理员可删除空间
-        if (!oldSpace.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"仅本人或管理员可删除空间");
-        }
+        spaceService.checkSpaceAuth(loginUser, oldSpace);
 
         // 5.操作数据库，把对应的空间删除掉，逻辑删除
+        // 如果是团队空间，还需要删除 SpaceUser 表中的数据
+        if(oldSpace.getSpaceType() == SpaceTypeEnum.TEAM.getValue()){
+            spaceUserService.remove(new LambdaQueryWrapper<SpaceUser>().eq(SpaceUser::getSpaceId, id));
+        }
         boolean result = spaceService.removeById(id);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
@@ -151,6 +165,7 @@ public class SpaceController {
 
 
     /**
+     * 获取空间详情接口
      * 根据 id 获取空间封装类（包含用户信息）
      * 这里正常来说是仅本人只可以访问自己的空间信息，需要设置权限
      */
@@ -160,8 +175,12 @@ public class SpaceController {
         // 查询数据库
         Space space = spaceService.getById(id);
         ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR,"未查询到该空间");
+        SpaceVO spaceVO = spaceService.getSpaceVO(space, request);
+        User loginUser = userService.getLoginUser(request);
+        List<String> permissionList = spaceUserAuthManager.getPermissionList(space, loginUser);
+        spaceVO.setPermissionList(permissionList);
         // 获取封装类
-        return ResultUtils.success(spaceService.getSpaceVO(space, request));
+        return ResultUtils.success(spaceVO);
     }
 
 
@@ -235,9 +254,7 @@ public class SpaceController {
 
         // 7.仅本人或管理员可编辑空间
         User loginUser = userService.getLoginUser(request);
-        if (!oldSpace.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-        }
+        spaceService.checkSpaceAuth(loginUser, oldSpace);
 
         // 8.操作数据库
         boolean result = spaceService.updateById(space);

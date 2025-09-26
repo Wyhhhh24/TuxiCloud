@@ -19,6 +19,38 @@ spring:
     store-type: redis
     # 30天过期
     timeout: 2592000
+  # 空间图片分表
+  shardingsphere:
+    datasource:
+      names: yun_picture  #首先我们指定逻辑表的名称，我们的库名
+      yun_picture:  #配置数据库的连接，和我们实际数据库配置一样，这里再配置一次
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        url: jdbc:mysql://localhost:3306/yun_picture
+        username: root
+        password: 123456
+    rules:  #分库分表的规则
+      sharding:
+        tables:
+          picture:
+            actual-data-nodes: yun_picture.picture  # 动态分表，实际表的节点，我们所有的分表都要定义在实际的数据节点中
+            # actual-data-nodes 一般情况下是指定一段分表的范围，比如 yun_picture.picture_${0..9999} 表示有 picture_0 ~ picture_9999 这 10000 张分表
+            # 但是，ShardingSphere 在执行分表查询时会校验要查询的表（比如 picture_123456789）是否在 actual-data-nodes 的配置范围内。
+            # 如果不在配置内就直接报错，都没有机会写一个逻辑把这个改掉
+            # 但是由于我们的 spaceId 是长整型，范围太大，不能写一个 0~长整型最大值吧，无法通过指定范围将所有分表名称包含，导致无法通过框架内置的校验
+            # 所以此处将 actual-data-nodes 就随便设置了，设置为一个逻辑表就好了
+            table-strategy:
+              standard:
+                sharding-column: spaceId  #我们要指定分表是根据 spaceId 这一列来分表的，Picture 就是有 spaceId 这一列，我们可以通过 spaceId 把图片存到不同的表里
+                sharding-algorithm-name: picture_sharding_algorithm  # 使用自定义分片算法，我们就自定义实现这个算法
+        sharding-algorithms:
+          picture_sharding_algorithm:
+            type: CLASS_BASED  #基于类来自定义算法，因为这个算法是需要我们自己写一些策略，所以基于类去实现，就不基于内置的了
+            props:
+              strategy: standard  #标准策略
+              algorithmClassName: com.air.yunpicturebackend.manager.sharding.PictureShardingAlgorithm  #我们要定义一个图片分表算法实现类，
+    props:
+      sql-show: true  #开发阶段可以开启，能够打印出实际执行的 sql ，但生产环境就不开了，不然日志会特别多
 
 
   #数据库配置
@@ -52,6 +84,7 @@ mybatis-plus:
     #实际效果
     #当调用 deleteById() 等方法时，MyBatis-Plus 会自动执行 UPDATE 操作而非 DELETE，将指定字段更新为 logic-delete-value 值
     #所有查询操作（selectList() 等）会自动附加条件 WHERE isDeleted = 0，只查询未删除的记录
+    enable-sql-runner: true  #使用 MyBatis Plus 的 SqlRunner，必须要开启这个配置
 
 #接口文档配置
 knife4j:

@@ -17,6 +17,10 @@ import com.air.yunpicturebackend.constant.UserConstant;
 import com.air.yunpicturebackend.exception.BusinessException;
 import com.air.yunpicturebackend.exception.ErrorCode;
 import com.air.yunpicturebackend.exception.ThrowUtils;
+import com.air.yunpicturebackend.manager.auth.SpaceUserAuthManager;
+import com.air.yunpicturebackend.manager.auth.StpKit;
+import com.air.yunpicturebackend.manager.auth.annotation.SaSpaceCheckPermission;
+import com.air.yunpicturebackend.manager.auth.model.SpaceUserPermissionConstant;
 import com.air.yunpicturebackend.model.dto.picture.*;
 import com.air.yunpicturebackend.model.entity.Picture;
 import com.air.yunpicturebackend.model.entity.Space;
@@ -31,6 +35,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.util.DigestUtils;
@@ -68,6 +73,8 @@ public class PictureController {
     @Resource
     private AliYunAiApi aliYunAiApi;
 
+    @Resource
+    private SpaceUserAuthManager spaceUserAuthManager;
 
     /**
      * 本地缓存
@@ -87,13 +94,13 @@ public class PictureController {
                     .expireAfterWrite(5L, TimeUnit.MINUTES)
                     .build();
 
-
     /**
      * 上传本地图片 （新图上传，重新上传）
      */
     @PostMapping("/upload")
 //    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)  不用进行权限控制了，用户也可以使用
     //权限控制，就是我们要来把这个审核状态，假如说有人更新或者编辑了这个图片，审核状态都给它变成 待审核 状态
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_UPLOAD)
     public BaseResponse<PictureVO> uploadPicture(
             @RequestPart("file") MultipartFile multipartFile,  // 接收名为 "file" 的上传文件
             PictureUploadRequest pictureUploadRequest,
@@ -108,6 +115,7 @@ public class PictureController {
      * 通过图片 URL 上传图片 （新图上传，重新上传）
      */
     @PostMapping("/upload/url")
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_UPLOAD)
     public BaseResponse<PictureVO> uploadPictureByUrl(
             @RequestBody PictureUploadRequest pictureUploadRequest,
             HttpServletRequest request) {
@@ -139,6 +147,7 @@ public class PictureController {
      * 现在有了公共图库和私有空间了，私有空间的图片管理员不可以删除，所以这段逻辑得要添加一点
      */
     @PostMapping("/delete")
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_DELETE)
     public BaseResponse<Boolean> deletePicture(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
         if (deleteRequest == null || deleteRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -153,7 +162,7 @@ public class PictureController {
      * 更新图片（仅管理员可用）
      */
     @PostMapping("/update")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)  // 仅系统管理员可用的
     public BaseResponse<Boolean> updatePicture(@RequestBody PictureUpdateRequest pictureUpdateRequest
             , HttpServletRequest httpServletRequest) {
         // 1. 校验参数
@@ -191,7 +200,7 @@ public class PictureController {
      * 管理员可以看到 Picture 的全部信息，未包含用户的信息
      */
     @GetMapping("/get")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE) // 仅系统管理员可用的
     public BaseResponse<Picture> getPictureById(long id, HttpServletRequest request) {
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR, "图片 id 不存在");
         // 查询数据库
@@ -204,6 +213,9 @@ public class PictureController {
 
     /**
      * 根据 id 获取图片封装类（包含用户信息）
+     * 只要打上权限校验的注解，就强制校验用户必须登录，这个接口就变成了用户登录之后才能访问
+     * 所以这里没有加权限校验注解，使用编程式鉴权
+     * 这个接口式根据 pictureId 获取图片信息，这里为了防止私有空间的图片也被人访问，我们在里面进行编程式鉴权，也是通过 sa-token
      */
     @GetMapping("/get/vo")
     public BaseResponse<PictureVO> getPictureVOById(long id, HttpServletRequest request) {
@@ -211,17 +223,31 @@ public class PictureController {
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR, "图片 id 不存在");
         User loginUser = userService.getLoginUser(request);
         // 2.查询数据库，只从审核通过的图片中进行查询
-        Picture picture = pictureService.lambdaQuery().eq(Picture::getReviewStatus, PictureReviewStatusEnum.PASS.getValue())
+        Picture picture = pictureService.lambdaQuery()
                 .eq(Picture::getId, id).one();
         ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR, "该图片不存在");
         // 3.判断是不是公共图库中的图片，如果是私有图片得要判断当前用户有没有权限操作该图片
         Long spaceId = picture.getSpaceId();
+        Space space = null;
         if (spaceId != null) {
+            // 首先如果 spaceId 不为空，也就是需要权限访问的图片，校验一下权限，使用编程式权限校验
+            // 必须要有浏览权限，这个返回值不是抛异常，而是你有没有这个权限
+            boolean hasPermission = StpKit.SPACE.hasPermission(SpaceUserPermissionConstant.PICTURE_VIEW);
+            ThrowUtils.throwIf(!hasPermission, ErrorCode.NO_AUTH_ERROR, "没有权限查看该图片");
+            // 已经改为使用注解鉴权
             // 私有图片需要进行权限校验
-            pictureService.checkPictureAuth(loginUser, picture);
+            //pictureService.checkPictureAuth(loginUser, picture);
+
+            space = spaceService.getById(spaceId);
+            ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
         }
+        // 获取权限列表
+        List<String> permissionList = spaceUserAuthManager.getPermissionList(space, loginUser);
+
+        PictureVO pictureVO = pictureService.getPictureVO(picture, loginUser);
+        pictureVO.setPermissionList(permissionList);
         // 4.返回封装类
-        return ResultUtils.success(pictureService.getPictureVO(picture, loginUser));
+        return ResultUtils.success(pictureVO);
     }
 
 
@@ -229,7 +255,7 @@ public class PictureController {
      * 分页获取图片列表（仅管理员可用） 可以查看所有的图片
      */
     @PostMapping("/list/page")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE) // 系统管理员才可以用
     public BaseResponse<Page<Picture>> listPictureByPage(@RequestBody PictureQueryRequest pictureQueryRequest) {
         long current = pictureQueryRequest.getCurrent();
         long size = pictureQueryRequest.getPageSize();
@@ -246,6 +272,9 @@ public class PictureController {
      * 分页获取图片列表，给普通用户用的（封装类）
      * 未添加缓存
      * 假如说用户传过来的参数是查询某一个 spaceId 的图片，我们是不是得要校验它有没有权限
+     * 只要打上权限校验的注解，就强制校验用户必须登录
+     * 这个接口就变成了用户登录之后才能访问
+     * 所以这里没有加权限校验注解，这个是主页展示图片接口，用户未登录也可以访问主页图片
      */
     @PostMapping("/list/page/vo")
     public BaseResponse<Page<PictureVO>> listPictureVOByPage(@RequestBody PictureQueryRequest pictureQueryRequest,
@@ -264,15 +293,18 @@ public class PictureController {
             //查 spaceId 值为 null 的数据
             pictureQueryRequest.setNullSpaceId(true);
         } else {
-            // 私有空间
-            User loginUser = userService.getLoginUser(request);
-            Space space = spaceService.getById(spaceId);
-            ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
-            if (!loginUser.getId().equals(space.getUserId())) {
-                throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有空间权限");
-            }
-        }
+            // 如果是私有空间，我们就改用 sa-token 进行权限校验
+            boolean hasPermission = StpKit.SPACE.hasPermission(SpaceUserPermissionConstant.PICTURE_VIEW);
+            ThrowUtils.throwIf(!hasPermission, ErrorCode.NO_AUTH_ERROR, "没有权限查看该图片");
 
+            //已经改为使用注解式鉴权
+//            User loginUser = userService.getLoginUser(request);
+//            Space space = spaceService.getById(spaceId);
+//            ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
+//            if (!loginUser.getId().equals(space.getUserId())) {
+//                throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有空间权限");
+//            }
+        }
         // 查询数据库
         Page<Picture> picturePage = pictureService.page(new Page<>(current, size),
                 pictureService.getQueryWrapper(pictureQueryRequest));
@@ -310,6 +342,7 @@ public class PictureController {
      * 颜色搜图
      */
     @PostMapping("/search/color")
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_VIEW) // 有浏览权限才可以访问
     public BaseResponse<List<PictureVO>> searchPictureByColor(@RequestBody SearchPictureByColorRequest searchPictureByColorRequest ,
                                                               HttpServletRequest  request) {
         // 1. 校验参数
@@ -495,6 +528,7 @@ public class PictureController {
      * 私有空间中的图片，只有本人可以进行编辑
      */
     @PostMapping("/edit")
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_EDIT)
     public BaseResponse<Boolean> editPicture(@RequestBody PictureEditRequest pictureEditRequest, HttpServletRequest request) {
         // 1.参数校验
         if (pictureEditRequest == null || pictureEditRequest.getId() <= 0) {
@@ -544,6 +578,7 @@ public class PictureController {
      * 批量编辑图片
      */
     @PostMapping("/edit/batch")
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_EDIT)
     public BaseResponse<Boolean> editPictureByBatch(@RequestBody PictureEditByBatchRequest pictureEditByBatchRequest, HttpServletRequest request) {
         //1.校验参数
         ThrowUtils.throwIf(pictureEditByBatchRequest == null, ErrorCode.PARAMS_ERROR);
@@ -562,6 +597,7 @@ public class PictureController {
      * todo 异步任务优化
      */
     @PostMapping("/out_painting/create_task")
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_EDIT) // ai 扩图就是为了编辑图片，所以得要有编辑权限
     public BaseResponse<CreateOutPaintingTaskResponse> createPictureOutPaintingTask(
             @RequestBody CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest,
             HttpServletRequest request) {

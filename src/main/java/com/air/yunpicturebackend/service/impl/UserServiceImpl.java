@@ -6,8 +6,10 @@ import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import com.air.yunpicturebackend.constant.CommonConstant;
+import com.air.yunpicturebackend.constant.UserConstant;
 import com.air.yunpicturebackend.exception.BusinessException;
 import com.air.yunpicturebackend.exception.ErrorCode;
+import com.air.yunpicturebackend.manager.auth.StpKit;
 import com.air.yunpicturebackend.model.dto.user.UserQueryRequest;
 import com.air.yunpicturebackend.model.enums.UserRoleEnum;
 import com.air.yunpicturebackend.model.vo.LoginUserVO;
@@ -138,13 +140,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在或密码错误");
         }
 
-        //3.记录用户登录状态
+        //3.记录用户登录状态到 Session 中
         request.getSession().setAttribute(USER_LOGIN_STATE, user);
         //可以把上述的 Session 理解为一个 Map，可以给 Map 设置 key 和 value，
         //每个不同的 SessionID 对应的 Session 存储都是不同的不用担心会污染，
         //所以上述代码中，给 Session 设置了固定的 key（USER_LOGIN_STATE），可以将这个 key 值提取为常量，便于后续获取。
-        //TODO session的设置
 
+        // 现在我们既然新增了一套权限校验体系，是不是用户登录的时候，要同时往原本的 requestSession
+        // 以及我们新增的 sa-token 的权限校验体系中去写入登录用户信息，原本只需要保存用户的登录态到 session 中
+        // 现在额外保存登录态到新体系中
+
+        // 记录用户登录态到 Sa-token ，便于空间鉴权时使用
+        // 注意保证该用户信息于 SpringSession 中的信息过期时间一致，这里问题不大，因为用户过期了之后，就访问不了整个系统了
+        StpKit.SPACE.login(user.getId()); //用户 id 作为登录 id
+        StpKit.SPACE.getSession().set(USER_LOGIN_STATE,user); //并且保存登录用户信息到 session 中
+
+        //现在登录信息就保存到了两个登录态
         return getLoginUserVO(user);
     }
 

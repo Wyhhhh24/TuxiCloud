@@ -29,6 +29,11 @@ public interface SpaceService extends IService<Space> {
 
 
     /**
+     * 私有空间权限校验，判断该用户有没有权限访问该空间
+     */
+    void checkSpaceAuth(User loginUser, Space space);
+
+    /**
      * 校验空间数据的方法，新建空间和修改空间信息的校验逻辑是不同的
      * 通过 boolean add 参数进行区分是新建空间还是校验空间
      */

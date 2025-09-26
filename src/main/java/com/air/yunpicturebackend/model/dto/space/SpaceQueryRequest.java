@@ -31,6 +31,13 @@ public class SpaceQueryRequest extends PageRequest implements Serializable {
     private String spaceName;
 
     /**
+     * 管理员可以按照空间类型进行查询
+     * 用户也可能要查自己加了哪些团队空间，或者自己的私有空间
+     * 空间类型：0-私有 1-团队
+     */
+    private Integer spaceType;
+
+    /**
      * 空间级别：0-普通版 1-专业版 2-旗舰版
      */
     private Integer spaceLevel;

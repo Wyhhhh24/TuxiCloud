@@ -107,8 +107,10 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR,"空间不存在");
 
             // 校验是否有空间权限，只能上传到自己的空间以及公共图库
-            if(!loginUser.getId().equals(space.getUserId()))
-                throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"没有空间权限");
+            // 改为统一的权限校验逻辑，以前是只有私有空间，只有空间的创建人才能去上传，但是现在我们不是只有私有空间了
+            // 有团队协作空间了，即使不是空间的创建人，但是如果它是空间的编辑者，它有权限，我们现在统一使用了 sa-token 进行权限校验
+//            if(!loginUser.getId().equals(space.getUserId()))
+//                throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"没有空间权限");
 
             // 校验额度，上传图片到自己的私有空间中，第一步都是先校验额度是否已满
             if (space.getTotalCount() >= space.getMaxCount()) {
@@ -131,10 +133,11 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             Picture oldPicture = getById(pictureId);
             ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR,"图片不存在");
 
+            // 改为统一的权限校验逻辑
             // 添加判断的逻辑，现在用户和管理员都可以更新图片，如果该图片既不是自己的，同时他又不是管理员的，就不能更新图片
-            if(!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)){
-                throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"仅本人或管理员可更新图片");
-            }
+//            if(!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)){
+//                throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"仅本人或管理员可更新图片");
+//            }
 
             // 搞不好还有一种情况，它更新图片的时候传入的 spaceId 和它创建图片时传入的 spaceId 不同，这样就会出现一种漏洞
             // 我们老图片传入了空间 A ，但是现在更新传入空间的时候，指定 spaceId 是 B ，这不就有问题了吗，为了严谨
@@ -258,7 +261,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND_ERROR));
 
         // 3.判断该图片用户是否具有操作权限，如果是公共图片，用户身份必须是本人或者管理员；如果是私有图片，该图片必须是自己空间中的图片才有权限操作该图片
-        checkPictureAuth(loginUser, picture);
+        //校验权限，已经改为使用注解鉴权
+        //checkPictureAuth(loginUser, picture);
 
         // 4.构造请求参数
         CreateOutPaintingTaskRequest taskRequest = new CreateOutPaintingTaskRequest();
@@ -507,7 +511,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
 
         // 2.判断该图片，用户是否具有操作权限，如果是公共图片，用户身份必须是本人或者管理员；如果是私有图片，该图片必须是自己空间中的图片才有权限操作该图片
-        checkPictureAuth(loginUser, oldPicture);
+        // 已经改为使用注解鉴权
+        //checkPictureAuth(loginUser, oldPicture);
 
         // 3.删除图片释放额度，操作两张表，所以要开启事务
         transactionTemplate.execute(status -> {
@@ -584,7 +589,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         Picture oldPicture = this.getById(id);
         ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
         // 6.校验当前用户是否有操作该图片的权限
-        checkPictureAuth(loginUser, oldPicture);
+        // 已经改为注解鉴权
+        //checkPictureAuth(loginUser, oldPicture);
         // 7.补充审核参数
         this.fillReviewParams(picture, loginUser);
         // 8.操作数据库
@@ -594,7 +600,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
 
 
     /**
-     * 校验权限
+     * 手动校验权限
      * 判断该图片，用户是否具有操作权限，如果是公共图片，用户身份必须是本人或者管理员；如果是私有图片，该图片必须是自己空间中的图片才有权限操作该图片
      * 公共图库的话是系统管理员也能改
      * @param loginUser

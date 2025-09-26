@@ -1,5 +1,7 @@
 package com.air.yunpicturebackend.exception;
 
+import cn.dev33.satoken.exception.NotLoginException;
+import cn.dev33.satoken.exception.NotPermissionException;
 import com.air.yunpicturebackend.common.BaseResponse;
 import com.air.yunpicturebackend.common.ResultUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +12,25 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice //环绕切面，就可以在这个类中写一些切点
 @Slf4j
 public class GlobalExceptionHandler {
+
+    /**
+     * 如果 Sa-Token 校验用户没有符合要求的权限、或者用户未登录，就会抛出它定义的异常，参考文档。
+     * 需要将框架؜的异常全局处理为我们自己定义的业务异‌常
+     */
+    // 捕获 sa-token 的未登录异常，把它改成我们自己的未登录异常，这样我们就统一了异常，前端不会看到 sa-token 抛出我们未处理过的异常
+    @ExceptionHandler(NotLoginException.class)
+    public BaseResponse<?> notLoginException(NotLoginException e) {
+        log.error("NotLoginException", e);
+        return ResultUtils.error(ErrorCode.NOT_LOGIN_ERROR, e.getMessage());
+    }
+
+    //捕获 sa-token 的无权限异常，把它改成我们自己的无权限异常，这样我们就统一了异常，前端不会看到 sa-token 抛出我们未处理过的异常
+    @ExceptionHandler(NotPermissionException.class)
+    public BaseResponse<?> notPermissionExceptionHandler(NotPermissionException e) {
+        log.error("NotPermissionException", e);
+        return ResultUtils.error(ErrorCode.NO_AUTH_ERROR, e.getMessage());
+    }
+
 
     // BusinessException 继承自 RuntimeException，因此它属于 "运行时异常" 的一种。
     // 但 @ExceptionHandler 会优先匹配 最具体的异常类型（即 BusinessException），而不是父类 RuntimeException。
