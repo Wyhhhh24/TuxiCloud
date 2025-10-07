@@ -98,4 +98,14 @@ knife4j:
         api-rule-resources:
           - com.air.yunpicturebackend.controller
 
+# 对象存储配置（需要从腾讯云获取）
+cos:
+  client:
+    host: xxxxxxxx
+    secretId: ${COS_ACCESS_KEY_ID}
+    secretKey: ${COS_ACCESS_KEY_SECRET}
+    region: xxxxxx
+    bucket: xxxxxx
 
+aliYunAi:
+  accessKeyId: ${API_KEY}

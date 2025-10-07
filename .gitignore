@@ -1,6 +1,6 @@
 ### Custom ###
-application-local.yaml
-
+ # 排除本地配置文件
+src/main/resources/application-local.yaml
 .gitignore
 
 HELP.md
