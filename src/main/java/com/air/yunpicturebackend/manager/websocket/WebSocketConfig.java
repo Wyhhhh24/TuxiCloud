@@ -30,12 +30,12 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     /**
      * 类似于编写؜ Spring MVC 的 Controller 接口，可以为指定的路径‍配置处理器和拦截器
-     * 之后，前端就可以通过 WebSocket 连接项目启动端口的 /ws/picture/edit 路径
+     * 配置之后，前端就可以通过 WebSocket 连接项目启动端口的 /ws/picture/edit 路径
      */
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(pictureEditHandler, "/ws/picture/edit") // 注册一个处理器，然后是请求地址 TODO 每一个接口都可以写一个单独的处理器
-                .addInterceptors(wsHandshakeInterceptor) // 添加拦截器，可以添加多个
+                .addInterceptors(wsHandshakeInterceptor) // 添加拦截器，可以添加多个，这个拦截器进行权限校验的
                 .setAllowedOriginPatterns("*"); // 允许跨域
     }
 }

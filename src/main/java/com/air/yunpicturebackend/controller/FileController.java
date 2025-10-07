@@ -31,14 +31,15 @@ public class FileController {
     @Resource
     private CosManager cosManager;
 
+
     /**
      * 测试文件上传
      *
      * @param multipartFile
      * @return
      */
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)  //只有管理员可以访问
-    @PostMapping("/test/upload")            //接收前端表单传过来的文件，表单参数名称“file”
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)  // 只有管理员可以访问
+    @PostMapping("/test/upload")            // 接收前端表单传过来的文件，表单参数名称“file”
     public BaseResponse<String> testUploadFile(@RequestPart("file") MultipartFile multipartFile) {
         // 得到最终要存储的文件地址，像： /test/example.jpg
         String filename = multipartFile.getOriginalFilename(); //得到文件的原始文件名
@@ -53,7 +54,6 @@ public class FileController {
             cosManager.putObject(filepath, file);
             // 返回 “/test/qqcion.png” 像这样的地址，可以与我们的域名进行拼接就可以有可访问的地址了
             return ResultUtils.success(filepath);
-
         } catch (Exception e) {
             log.error("file upload error, filepath = " + filepath, e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "上传失败");
@@ -108,5 +108,4 @@ public class FileController {
             }
         }
     }
-
 }

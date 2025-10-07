@@ -53,15 +53,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public long userRegister(String userAccount, String userPassword, String checkPassword) {
         // 1. 校验参数
         if (StrUtil.hasBlank(userAccount, userPassword, checkPassword)) {
-            //检测多个字符串中是否存在空值或空白字符
+            // 检测多个字符串中是否存在空值或空白字符
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数为空");
         }
         if (userAccount.length() < 4) {
-            //账号长度需要大于 4
+            // 账号长度需要大于 4
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户账号过短");
         }
         if (userPassword.length() < 6 || checkPassword.length() < 6) {
-            //密码长度需要大于 6
+            // 密码长度需要大于 6
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户密码过短");
         }
         if (!userPassword.equals(checkPassword)) {
@@ -83,9 +83,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         User user = new User();
         user.setUserAccount(userAccount);
         user.setUserPassword(encryptPassword);
-        user.setUserName(getRandomNickName());  //随机设置一个用户名
-        user.setUserRole(UserRoleEnum.USER.getValue()); //默认权限为用户
-        user.setUserAvatar(CommonConstant.USER_AVATAR_URL); //默认头像
+        user.setUserName(getRandomNickName());  // 随机设置一个用户名
+        user.setUserRole(UserRoleEnum.USER.getValue()); // 默认权限为用户
+        user.setUserAvatar(CommonConstant.USER_AVATAR_URL); // 默认头像
         boolean saveResult = this.save(user);
         if (!saveResult) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "注册失败，操作错误");
@@ -130,7 +130,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码错误");
         }
 
-        //2.查询用户是否存在，直接拿账号密码去查
+        // 2.查询用户是否存在，直接拿账号密码去查
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<User>()
                 .eq(User::getUserAccount, userAccount)
                 .eq(User::getUserPassword, getEncryptPassword(userPassword));
@@ -152,8 +152,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
         // 记录用户登录态到 Sa-token ，便于空间鉴权时使用
         // 注意保证该用户信息于 SpringSession 中的信息过期时间一致，这里问题不大，因为用户过期了之后，就访问不了整个系统了
-        StpKit.SPACE.login(user.getId()); //用户 id 作为登录 id
-        StpKit.SPACE.getSession().set(USER_LOGIN_STATE,user); //并且保存登录用户信息到 session 中
+        // 这个是 sa-token 中多账户体系中的 kit 模式的用法
+        StpKit.SPACE.login(user.getId()); // 用户 id 作为登录 id
+        StpKit.SPACE.getSession().set(USER_LOGIN_STATE,user); // 并且保存登录用户信息到 session 中
 
         //现在登录信息就保存到了两个登录态
         return getLoginUserVO(user);
@@ -197,7 +198,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     /**
-     * 通过 session 获取当前登录用户
+     * 通过 session 获取当前登录用户，同时也判断是否登录
      *
      * @param request
      * @return
@@ -206,11 +207,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public User getLoginUser(HttpServletRequest request) {
         // 1.从 session 中获取当前的登录用户信息
         Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
+        // 存的时候就是 User 对象
         User currentUser = (User) userObj;
         if (currentUser == null || currentUser.getId() == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR,"用户未登录");
         }
-        // 从数据库查询（追求性能的话可以注释，直接返回上述结果）
+        // 2.从数据库查询（追求性能的话可以注释，直接返回上述结果）
         long userId = currentUser.getId();
         currentUser = getById(userId);
         if (currentUser == null) {
@@ -218,6 +220,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         return currentUser;
     }
+
 
     /**
      * 用户注销

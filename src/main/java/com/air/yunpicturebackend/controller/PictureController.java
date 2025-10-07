@@ -1,6 +1,4 @@
 package com.air.yunpicturebackend.controller;
-
-import ch.qos.logback.core.util.TimeUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
@@ -35,17 +33,14 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.util.DigestUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -77,8 +72,8 @@ public class PictureController {
     private SpaceUserAuthManager spaceUserAuthManager;
 
     /**
-     * 本地缓存
-     * 官方文档中是这样写的，根据官方文档进行改造的
+     * Caffeine 本地缓存
+     * 官方文档中是这样写的，根据官方文档进行改造的，如下是官方文档中的例子：
      * LoadingCache<Key, Graph> graphs = Caffeine.newBuilder()
      * .maximumSize(10_000)
      * .expireAfterWrite(Duration.ofMinutes(5))
@@ -88,24 +83,25 @@ public class PictureController {
      */
     private final Cache<String, String> LOCAL_CACHE =
             Caffeine.newBuilder()
-                    .initialCapacity(1024)  //设置内存的初始容量，一开始分配一些内存，提高缓存的启动效率
-                    .maximumSize(10000L)  //最大1w条数据
+                    .initialCapacity(1024)  // 设置内存的初始容量，初始化分配一些内存，提高缓存的启动效率
+                    .maximumSize(10000L)  // 最大1w条数据
                     // 缓存 5 分钟移除
                     .expireAfterWrite(5L, TimeUnit.MINUTES)
                     .build();
+
 
     /**
      * 上传本地图片 （新图上传，重新上传）
      */
     @PostMapping("/upload")
-//    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)  不用进行权限控制了，用户也可以使用
-    //权限控制，就是我们要来把这个审核状态，假如说有人更新或者编辑了这个图片，审核状态都给它变成 待审核 状态
+    // 权限控制，假如说有人更新或者编辑图片，审核状态都给它变成 待审核 状态
     @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_UPLOAD)
-    public BaseResponse<PictureVO> uploadPicture(
-            @RequestPart("file") MultipartFile multipartFile,  // 接收名为 "file" 的上传文件
+    public BaseResponse<PictureVO> uploadPicture(@RequestPart("file") MultipartFile multipartFile,  // 接收名为 "file" 的上传文件
             PictureUploadRequest pictureUploadRequest,
             HttpServletRequest request) {
+        // 1.判断当前登录用户是否登录
         User loginUser = userService.getLoginUser(request);
+        // 2.调用方法，上传图片
         PictureVO pictureVO = pictureService.uploadPicture(multipartFile, pictureUploadRequest, loginUser);
         return ResultUtils.success(pictureVO);
     }
@@ -119,7 +115,9 @@ public class PictureController {
     public BaseResponse<PictureVO> uploadPictureByUrl(
             @RequestBody PictureUploadRequest pictureUploadRequest,
             HttpServletRequest request) {
+        // 1.获取当前登录用户，判断当前用户是否登录
         User loginUser = userService.getLoginUser(request);
+        // 2.调用方法上传图片
         PictureVO pictureVO = pictureService.uploadPicture(pictureUploadRequest.getFileUrl(),
                 pictureUploadRequest, loginUser);
         return ResultUtils.success(pictureVO);
@@ -135,8 +133,11 @@ public class PictureController {
             @RequestBody PictureUploadByBatchRequest pictureUploadByBatchRequest,
             HttpServletRequest request
     ) {
+        // 1.判断参数是否为空
         ThrowUtils.throwIf(pictureUploadByBatchRequest == null, ErrorCode.PARAMS_ERROR);
+        // 2.获取登录用户，判断用户是否登录
         User loginUser = userService.getLoginUser(request);
+        // 3.调用发给发抓取图片
         int uploadCount = pictureService.uploadPictureByBatch(pictureUploadByBatchRequest, loginUser);
         return ResultUtils.success(uploadCount);
     }
@@ -149,17 +150,20 @@ public class PictureController {
     @PostMapping("/delete")
     @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_DELETE)
     public BaseResponse<Boolean> deletePicture(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
+        // 1.判断参数
         if (deleteRequest == null || deleteRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
+        // 2.获取登录用户，判断用户是否登录
         User loginUser = userService.getLoginUser(request);
+        // 3.调用删除图片
         pictureService.deletePicture(deleteRequest.getId(), loginUser);
         return ResultUtils.success(true);
     }
 
 
     /**
-     * 更新图片（仅管理员可用）
+     * 更新图片记录的基本信息，图片名称，简介，分类，标签（仅管理员可用）
      */
     @PostMapping("/update")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)  // 仅系统管理员可用的
@@ -181,10 +185,10 @@ public class PictureController {
         // 注意将 list 转为 string
         picture.setTags(JSONUtil.toJsonStr(pictureUpdateRequest.getTags()));
 
-        // 数据校验
+        // 判断图片的基本信息如 id 是否存在，url 是否过长，简介是否过长
         pictureService.validPicture(picture);
 
-        //填充审核的信息
+        //填充审核的信息，管理员直接审核通过
         User loginUser = userService.getLoginUser(httpServletRequest);
         pictureService.fillReviewParams(picture, loginUser);
 
@@ -197,22 +201,23 @@ public class PictureController {
 
     /**
      * 根据 id 获取图片（仅管理员可用）
-     * 管理员可以看到 Picture 的全部信息，未包含用户的信息
+     * 管理员可以看到 Picture 的全部信息，不包含当前用户的基本信息
      */
     @GetMapping("/get")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE) // 仅系统管理员可用的
-    public BaseResponse<Picture> getPictureById(long id, HttpServletRequest request) {
+    public BaseResponse<Picture> getPictureById(long id) {
+        // 1.校验参数
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR, "图片 id 不存在");
-        // 查询数据库
+        // 2.查询数据库
         Picture picture = pictureService.getById(id);
         ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR, "未查询到该图片");
-        // 获取封装类
+        // 3.获取封装类
         return ResultUtils.success(picture);
     }
 
 
     /**
-     * 根据 id 获取图片封装类（包含用户信息）
+     * 根据 id 获取图片封装类（含用户信息）
      * 只要打上权限校验的注解，就强制校验用户必须登录，这个接口就变成了用户登录之后才能访问
      * 所以这里没有加权限校验注解，使用编程式鉴权
      * 这个接口式根据 pictureId 获取图片信息，这里为了防止私有空间的图片也被人访问，我们在里面进行编程式鉴权，也是通过 sa-token
@@ -221,6 +226,7 @@ public class PictureController {
     public BaseResponse<PictureVO> getPictureVOById(long id, HttpServletRequest request) {
         // 1.校验参数
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR, "图片 id 不存在");
+        // 获取当前登录用户
         User loginUser = userService.getLoginUser(request);
         // 2.查询数据库，只从审核通过的图片中进行查询
         Picture picture = pictureService.lambdaQuery()
@@ -231,17 +237,18 @@ public class PictureController {
         Space space = null;
         if (spaceId != null) {
             // 首先如果 spaceId 不为空，也就是需要权限访问的图片，校验一下权限，使用编程式权限校验
-            // 必须要有浏览权限，这个返回值不是抛异常，而是你有没有这个权限
+            // 必须要有浏览权限，这个返回值不是抛异常，而是你有没有这个权限 TODO 这里是为什么
             boolean hasPermission = StpKit.SPACE.hasPermission(SpaceUserPermissionConstant.PICTURE_VIEW);
             ThrowUtils.throwIf(!hasPermission, ErrorCode.NO_AUTH_ERROR, "没有权限查看该图片");
+
             // 已经改为使用注解鉴权
             // 私有图片需要进行权限校验
-            //pictureService.checkPictureAuth(loginUser, picture);
+            // pictureService.checkPictureAuth(loginUser, picture);
 
             space = spaceService.getById(spaceId);
             ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
         }
-        // 获取权限列表
+        // 获取权限列表，返回
         List<String> permissionList = spaceUserAuthManager.getPermissionList(space, loginUser);
 
         PictureVO pictureVO = pictureService.getPictureVO(picture, loginUser);
@@ -297,7 +304,7 @@ public class PictureController {
             boolean hasPermission = StpKit.SPACE.hasPermission(SpaceUserPermissionConstant.PICTURE_VIEW);
             ThrowUtils.throwIf(!hasPermission, ErrorCode.NO_AUTH_ERROR, "没有权限查看该图片");
 
-            //已经改为使用注解式鉴权
+            // 上面使用了 sa-token 的编程式鉴权
 //            User loginUser = userService.getLoginUser(request);
 //            Space space = spaceService.getById(spaceId);
 //            ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
@@ -312,6 +319,7 @@ public class PictureController {
         // 获取封装类，获取 Page<PictureVO> 对象
         return ResultUtils.success(pictureService.getPictureVOPage(picturePage, request));
     }
+
 
     /**
      * 以图搜图
@@ -334,23 +342,28 @@ public class PictureController {
         // 2.通过 pictureId 获取图片 url
         Picture oldPicture = pictureService.getById(pictureId);
         ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
+        // 3.调用 以图搜图 接口获取结果，返回缩略图url 还有来源图url
         List<ImageSearchResult> resultList = ImageSearchApiFacade.searchImage(oldPicture.getUrl());
         return ResultUtils.success(resultList);
     }
 
+
     /**
      * 颜色搜图
+     * 该功能限制在空间内使用，主要是考虑到公共图库的‌图片数量可能非常庞大，直接进行颜色匹配会导致‍搜索速度较慢，影响用户体验。
      */
     @PostMapping("/search/color")
-    @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_VIEW) // 有浏览权限才可以访问
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_VIEW) // 用户在某一个空间中有浏览权限才可以访问该接口
     public BaseResponse<List<PictureVO>> searchPictureByColor(@RequestBody SearchPictureByColorRequest searchPictureByColorRequest ,
                                                               HttpServletRequest  request) {
-        // 1. 校验参数
+        // 1.校验参数
         ThrowUtils.throwIf(searchPictureByColorRequest == null, ErrorCode.PARAMS_ERROR);
+        // 2.获取想搜索的色调
         String picColor = searchPictureByColorRequest.getPicColor();
+        // 3.空间id
         Long spaceId = searchPictureByColorRequest.getSpaceId();
         User loginUser = userService.getLoginUser(request);
-        // 2. 调用方法
+        // 4.调用方法
         return ResultUtils.success(pictureService.searchPictureByColor(spaceId, picColor, loginUser));
     }
 
@@ -358,10 +371,9 @@ public class PictureController {
     /**
      * 多级缓存
      * 主页展示的图片，就是请求这个接口的
-     * 分页获取图片列表，给普通用户用的（封装类）
-     * 优先从本地缓存中读取数据。如果命中，则直接返回。如果本地缓存未命中，则查询 Redis 分布式缓存。如果 Redis 命中，则返回数据并更新本地缓存。
-     * 如果 Redis 也未命中，则查询数据库，并将结果写入 Redis 和本地缓存。
-     *
+     * 先查本地缓存(Caffeine)，若命中直接返回
+     * 本地缓存未命中 → 查Redis，若命中则返回数据并更新本地缓存
+     * Redis未命中 → 查数据库，返回结果，并将结果写入Redis和本地缓存中
      *
      * 这里这个分页缓存先不用了，或者加一些权限校验，然后分开缓存
      */
@@ -381,7 +393,7 @@ public class PictureController {
         // 可以显著缩短 Redis 的 Key 长度。这是一种常见的优化手段，
         String queryCondition = JSONUtil.toJsonStr(pictureQueryRequest);
         String hashKey = DigestUtils.md5DigestAsHex(queryCondition.getBytes());
-        //Key的设置都是一样的，但是一般本地缓存不加 项目的前缀
+        // Key的设置都是一样的，但是一般本地缓存不加 项目的前缀
         String cacheKey = "yupicture:listPictureVOByPage:" + hashKey;
 
         // 1.先从本地缓存中查询
@@ -410,7 +422,7 @@ public class PictureController {
 
         // 4.更新本地缓存和分布式缓存
         String cacheValue = JSONUtil.toJsonStr(pictureVOPage);
-        LOCAL_CACHE.put(cacheKey, cacheValue);
+        LOCAL_CACHE.put(cacheKey, cacheValue); // 本地缓存在初始化的时候就有设置过期时间
         // 5 - 10 分钟随机过期，防止雪崩，防止同一个时间很多的缓存都失效了，所以过期时间设置不同
         int cacheExpireTime = 300 + RandomUtil.randomInt(0, 300);
         valueOps.set(cacheKey, cacheValue, cacheExpireTime, TimeUnit.SECONDS);
@@ -524,8 +536,7 @@ public class PictureController {
 
     /**
      * 编辑图片（给用户使用）
-     * 这里也需要进行修改，公共图库中的图片，本人以及管理员可以进行编辑
-     * 私有空间中的图片，只有本人可以进行编辑
+     * 采用 sa-token 注解式鉴权，统一鉴权
      */
     @PostMapping("/edit")
     @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_EDIT)
@@ -534,6 +545,7 @@ public class PictureController {
         if (pictureEditRequest == null || pictureEditRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
+        // 2.获取登录用户
         User loginUser = userService.getLoginUser(request);
         pictureService.editPicture(pictureEditRequest, loginUser);
         return ResultUtils.success(true);
@@ -593,11 +605,11 @@ public class PictureController {
      * ai扩图图片的大小也是有限制的
      * 官方文档中：
      * 图像大小：不超过10MB。
-     * 图像分辨率：不低于512×512像素且不超过4096×4096像素。
+     * 图像分辨率：不低于 512×512 像素且不超过 4096×4096 像素。
      * todo 异步任务优化
      */
     @PostMapping("/out_painting/create_task")
-    @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_EDIT) // ai 扩图就是为了编辑图片，所以得要有编辑权限
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.PICTURE_EDIT) // ai 扩图就是为了编辑图片，所以用户得要有编辑权限
     public BaseResponse<CreateOutPaintingTaskResponse> createPictureOutPaintingTask(
             @RequestBody CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest,
             HttpServletRequest request) {
@@ -605,17 +617,21 @@ public class PictureController {
         if (createPictureOutPaintingTaskRequest == null || createPictureOutPaintingTaskRequest.getPictureId() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
+        // 2.获取当前登录用户
         User loginUser = userService.getLoginUser(request);
         CreateOutPaintingTaskResponse response = pictureService.createPictureOutPaintingTask(createPictureOutPaintingTaskRequest, loginUser);
         return ResultUtils.success(response);
     }
 
+
     /**
-     * 查询 AI 扩图任务
+     * 查询 AI 扩图任务结果
      */
     @GetMapping("/out_painting/get_task")
     public BaseResponse<GetOutPaintingTaskResponse> getPictureOutPaintingTask(String taskId) {
+        // 1.校验参数
         ThrowUtils.throwIf(StrUtil.isBlank(taskId), ErrorCode.PARAMS_ERROR);
+        // 2.根据任务 ID 调用接口获取任务结果
         GetOutPaintingTaskResponse task = aliYunAiApi.getOutPaintingTask(taskId);
         return ResultUtils.success(task);
     }

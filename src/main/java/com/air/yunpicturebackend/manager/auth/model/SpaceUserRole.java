@@ -7,6 +7,7 @@ import java.util.List;
 
 /**
  * 空间成员角色
+ * 和权限文件中的 roles 数组中的对象对应
  */
 @Data
 public class SpaceUserRole implements Serializable {

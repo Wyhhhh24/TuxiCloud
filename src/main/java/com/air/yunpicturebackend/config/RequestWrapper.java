@@ -9,9 +9,7 @@ import javax.servlet.http.HttpServletRequestWrapper;
 import java.io.*;
 
 /**
- * 包装请求，使 InputStream 可以重复读取
- *
- * @author pine
+ * 包装请求，使响应体中的 InputStream 可以重复读取
  */
 @Slf4j
 public class RequestWrapper extends HttpServletRequestWrapper {
@@ -66,5 +64,4 @@ public class RequestWrapper extends HttpServletRequestWrapper {
     public String getBody() {
         return this.body;
     }
-
 }

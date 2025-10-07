@@ -9,12 +9,10 @@ import org.springframework.scheduling.annotation.EnableAsync;
 
 @SpringBootApplication(exclude = {ShardingSphereAutoConfiguration.class}) // TODO 自动配置把它移除掉，项目启动的时候就不会出现 shardingsphere 找不到，报错找不到算法类的情况了
 @MapperScan("com.air.yunpicturebackend.mapper")
-@EnableAspectJAutoProxy(exposeProxy = true) //开启可以引入代理
-@EnableAsync //开启异步
+@EnableAspectJAutoProxy(exposeProxy = true) // 开启可以引入代理
+@EnableAsync // 开启异步
 public class YunPictureBackendApplication {
-
     public static void main(String[] args) {
         SpringApplication.run(YunPictureBackendApplication.class, args);
     }
-
 }

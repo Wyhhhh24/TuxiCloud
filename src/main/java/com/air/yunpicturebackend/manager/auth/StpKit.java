@@ -10,17 +10,17 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class StpKit {
-
     public static final String SPACE_TYPE = "space";
 
     /**
-     * 相当于我们项目中的 sa-token 有两套账号体系 DEFAULT 我们是没有用的
+     * sa-token 可以使用两套账号体系，默认的我们没有用
      * 因为我们是基于 自定义注解+aop 实现的用户登录权限校验
      * 这里我们定义一套 SPACE 账号体系
+     * 具体 Kit 模式的用法，看文档：https://sa-token.cc/doc.html#/up/many-account 中的第 5 点
      */
 
     /**
-     * 默认原生会话对象，项目中目前没使用到
+     * 默认原生会话对象，项目中目前没使用到，StpUtil.login(10001) 也就是这种原生的，直接调用这个方法的话，就是这套默认的体系
      */
     public static final StpLogic DEFAULT = StpUtil.stpLogic;
 

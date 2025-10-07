@@ -9,7 +9,7 @@ public class PictureUploadRequest implements Serializable {
   
     /**
      * 由于图片需要支持重复上传（基础信息不变，只改变图片文件），所以要添加图片 id 参数
-     * 图片 id（用于修改）  
+     * 图片 id（用于修改该条 Picture 记录）
      */  
     private Long id;
 
@@ -25,10 +25,10 @@ public class PictureUploadRequest implements Serializable {
 
     /**
      * 空间id
-     * 我们之前上传图片是不区分上传到哪个空间的，现在用户有了自己的空间，上传图片的时候可以指定空间Id了
+     * 用户可以上传到公共图库（空间 id 为 null）
+     * 可以上传到私有空间以及团队空间（空间 id 不为 null）
      */
     private Long spaceId;
-
 
     private static final long serialVersionUID = 1L;
 }

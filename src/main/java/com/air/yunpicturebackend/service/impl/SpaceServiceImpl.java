@@ -52,9 +52,9 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
     private SpaceUserService spaceUserService;
 
     // TODO 不用分表了
-//    @Resource
-//    @Lazy
-//    private DynamicShardingManager dynamicShardingManager;
+    // @Resource
+    // @Lazy
+    // private DynamicShardingManager dynamicShardingManager;
 
     /**
      * 创建空间
@@ -68,21 +68,21 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
             space.setSpaceName(loginUser.getUserName()+"的空间");
         }
         if(space.getSpaceLevel() == null){
-            //如果未指定空间级别，级别就默认设置为普通空间级别
+            // 如果未指定空间级别，级别就默认设置为普通空间级别
             space.setSpaceLevel(SpaceLevelEnum.COMMON.getValue());
         }
         // 创建空间我们可以创建两种类型的空间，用户创建空间的时候如果未指定空间类型，类型就默认设置为私有空间
         if(space.getSpaceType() == null){
-            //如果未指定空间类型，类型就默认设置为普通空间类型
+            // 如果未指定空间类型，类型就默认设置为私有空间
             space.setSpaceType(SpaceTypeEnum.PRIVATE.getValue());
         }
-        //根据空间级别填充限额信息
+        // 根据空间级别填充限额信息
         fillSpaceBySpaceLevel(space);
 
-        //2.校验参数，空间名称和空间级别
+        // 2.校验参数，空间名称和空间级别，传入的是 true 表示创建空间的校验逻辑
         validSpace(space, true);
 
-        //3.校验权限，非管理员只能创建普通级别的空间
+        // 3.校验权限，非管理员只能创建普通级别的空间
         // 如果用户想要创建非普通空间级别的空间，并且他还不是管理员，就报错
         Long userId = loginUser.getId();
         space.setUserId(userId);
@@ -90,13 +90,13 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"普通用户没有权限创建普通级别以外的空间");
         }
 
-        //4.控制同一用户只能创建一个私有空间，以及一个团队空间（加锁，要上事务）
+        // 4.控制同一用户只能创建一个私有空间，以及一个团队空间（加锁，要上事务）
         // 如果要对这个方法加锁的话，我们这个锁能加到什么力度，假如说有10个不同的用户，同时调用了创建空间的方法，觉得这10个用户可以同时创建空间吗？
         // 还是一个一个排序，依次执行，不同用户能不能同时执行？那肯定是可以的，因为不同的用户，每个用户都可以创建一个，那不同的用户创建自己的谁也不碍着谁
         // 所以呢，锁的力度，不要加到整个方法上，而是每个用户可以有一把自己的锁，防止一个用户一下子点击10下创建空间，一个人创建10个空间
 
-        //java 8 之后，我们有一个字符串常量池的概念，相同值的字符串它是有一个固定的同样的存储空间，为了保证这个锁对象它是同一把锁，是用的同样的存储空间
-        //所以我们加一个 intern() ，取到不同的 String 对象的同一个值，否则哪怕是同一个用户得到的也是不同的对象，每一个 String 都是不同的对象
+        // java 8 之后，我们有一个字符串常量池的概念，相同值的字符串它是有一个固定的同样的存储空间，为了保证这个锁对象它是同一把锁，是用的同样的存储空间
+        // 所以我们加一个 intern() ，取到不同的 String 对象的同一个值，否则哪怕是同一个用户得到的也是不同的对象，每一个 String 都是不同的对象
         String lock = String.valueOf(userId).intern();
 
         // 使用本地锁
@@ -123,7 +123,7 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
                     ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "创建团队成员记录失败");
                 }
                 // 创建分表（仅对团队空间有效） TODO 现在不用分表了
-//                dynamicShardingManager.createSpacePictureTable(space);
+                // dynamicShardingManager.createSpacePictureTable(space);
                 return space.getId();
             });
             //如果这个 id 为空的话，那它就会取一个其它的值，这里设置为 -1L ，但这行代码可写可不写，一般都不会为空的
@@ -178,7 +178,7 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
      * 校验空间数据的方法，创建空间和修改空间时，信息的校验逻辑是不一致的，校验规则是不一致的
      * 比如：创建空间时，必须要传空间名称，修改空间的时候可以不改空间名称，可以不用传空间名称
      * 所以传的参数多加一个
-     * 通过 boolean add 参数进行区分是创建空间还是修改空间
+     * 通过 boolean add 参数进行区分是创建空间还是修改空间，ture 为创建空间
      */
     @Override
     public void validSpace(Space space, boolean add) {
@@ -194,17 +194,17 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
         //根据传过来的空间类型，获取对应的枚举
         SpaceTypeEnum spaceTypeEnum = SpaceTypeEnum.getEnumByValue(spaceType);
 
-        //2.校验参数，创建空间比修改空间的逻辑多一点
-        //  创建空间的时候，空间名称和空间级别以及空间类型都不能为空，修改空间的时候可以为空
+        // 2.校验参数，创建空间比修改空间的逻辑多一点
+        // 创建空间的时候，空间名称和空间级别以及空间类型都不能为空，修改空间的时候可以为空
         if(add){
             ThrowUtils.throwIf(StrUtil.isBlank(spaceName), ErrorCode.PARAMS_ERROR,"空间名称不能为空");
             ThrowUtils.throwIf(spaceLevel ==null, ErrorCode.PARAMS_ERROR,"空间级别不能为空");
             ThrowUtils.throwIf(spaceType == null, ErrorCode.PARAMS_ERROR,"空间类型不能为空");
         }
 
-        //3.修改和创建空间都需要这些判断
-        //  空间类型的话不可以进行修改，如果可以修改的话，那分库分表那些就都要修改了，但是这里还是进行判断一下
-        //  首先所传的参数不为空，才进行接下来的逻辑判断，创建空间肯定是不会为空的，修改空间的话，这些参数有的话才进行修改
+        // 3.修改和创建空间都需要这些判断
+        // 空间类型的话不可以进行修改，如果可以修改的话，那可能得要修改几个表的数据了，这里还是进行判断一下，实际用户是不能修改空间类型的
+        // 首先所传的参数不为空，才进行接下来的逻辑判断，创建空间肯定是不会为空的，修改空间的话，这些参数有的话才进行修改
         if(spaceLevel != null && spaceLevelEnum == null){
             //想设置的空间级别，如果设置的级别在系统默认的级别中都不存在的话，直接报错
             throw new BusinessException(ErrorCode.PARAMS_ERROR,"不存在该级别的空间");
@@ -231,8 +231,8 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
         if(userId != null && userId > 0){
             User user = userService.getById(userId);
             //如果能查到用户就进行封装，否则就是 null
-                UserVO userVO = userService.getUserVO(user);
-                spaceVO.setUser(userVO);
+            UserVO userVO = userService.getUserVO(user);
+            spaceVO.setUser(userVO);
         }
         return spaceVO;
     }

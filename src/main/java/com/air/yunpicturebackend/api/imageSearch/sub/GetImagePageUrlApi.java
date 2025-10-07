@@ -23,7 +23,8 @@ public class GetImagePageUrlApi {
      * @return
      */
     public static String getImagePageUrl(String imageUrl) {
-        //以下是请求：https://graph.baidu.com/upload?uptime=1757824051565  中的载荷，这个接口时所需的表单参数
+        //观察浏览器控制台
+        //以下是请求：https://graph.baidu.com/upload?uptime=1757824051565  中的载荷，也这个接口所需的表单参数
         //image : https%3A%2F%2Fair-wyh-1360725635
         //tn ：pc
         //from ：pc
@@ -45,6 +46,7 @@ public class GetImagePageUrlApi {
             // 2. 调用 hutool 工具类，发送 POST 请求到百度接口
             HttpResponse response = HttpRequest.post(url)
                     .header("acs-token", RandomUtil.randomString(1))
+                    // 添加一个随机的 acs-token，像一个反爬虫的机制，得要加这个请求头才可以访问成功
                     .form(formData)
                     .timeout(5000)
                     .execute();
@@ -60,8 +62,8 @@ public class GetImagePageUrlApi {
             // u0026sign=1265ffc27939f3eab76c201757824399\u0026tpl_from=pc",
             // "sign":"1265ffc27939f3eab76c201757824399"}}
 
-            String responseBody = response.body();
-            //拿到这个返回值，我们进行转换，可以转成一个Map结构，就不定义一个类来接收了，大部分数据都是没有用的
+            String responseBody = response.body(); // 这个 body() 方法中已经释放资源了
+            // 拿到这个返回值，我们进行转换，可以转成一个Map结构，就不定义一个类来接收了，大部分数据都是没有用的
             Map<String, Object> result = JSONUtil.toBean(responseBody, Map.class);
 
             // 3. 处理响应结果
@@ -73,9 +75,9 @@ public class GetImagePageUrlApi {
             // 从结果中取得 data 转换成 Map
             Map<String, Object> data = (Map<String, Object>) result.get("data");
             String rawUrl = (String) data.get("url");
-            // 这是一个原生的 URL ，需要对 URL 进行解码，否则会有问题
+            // 这是一个原生的 URL ，需要对 URL 进行解码，否则请求不成功
             String searchResultUrl = URLUtil.decode(rawUrl, StandardCharsets.UTF_8);
-            // 如果 URL 为空
+            // 判断 URL 是否为空
             if (searchResultUrl == null) {
                 throw new BusinessException(ErrorCode.OPERATION_ERROR, "未返回有效结果");
             }

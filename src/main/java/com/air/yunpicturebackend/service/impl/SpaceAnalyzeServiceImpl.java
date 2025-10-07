@@ -56,7 +56,7 @@ public class SpaceAnalyzeServiceImpl extends ServiceImpl<SpaceMapper, Space> imp
     public SpaceUsageAnalyzeResponse getSpaceUsageAnalyze(SpaceUsageAnalyzeRequest spaceUsageAnalyzeRequest, User loginUser) {
         // 1.根据查询的范围，校验权限
         // 我们需要区分一下，是查询所有的空间还是特定的空间，我们的空间表有一个现成的字段，每一个空间都有该空间的使用量以及图片的总数
-        // 但是如果需要查询全部的空间，或者说要查询公共图库的占用，单独从空间表查是不是比较麻烦；
+        // 但是如果需要查询全部的空间，或者说要查询公共图库的占用，单独从空间表查是不是比较麻烦
         // 如果要查公共图片占用的体积怎么查，是不是只能查图片表，把所有 spaceId 为 null 的图片的 pictureSize 求和
         // 所以我们会发现在我们这个需求中，查询全部空间和查询特定的空间，它的查询方式是有很大区别的，所以在最开始我们就逻辑区分一下
         // 特定空间的使用情况可以直接从 space 表中查询；全空间或者公共图库的使用情况，需要从 Picture 表统计查询
@@ -135,7 +135,7 @@ public class SpaceAnalyzeServiceImpl extends ServiceImpl<SpaceMapper, Space> imp
      */
     @Override
     public List<SpaceCategoryAnalyzeResponse> getSpaceCategoryAnalyze(SpaceCategoryAnalyzeRequest spaceCategoryAnalyzeRequest, User loginUser) {
-        // 1.检查权限
+        // 1.检查权限，提成了一个方法，上面的空间使用情况是直接进行判断的
         checkSpaceAnalyzeAuth(spaceCategoryAnalyzeRequest, loginUser);
 
         // 2.1.构造查询条件
@@ -187,7 +187,6 @@ public class SpaceAnalyzeServiceImpl extends ServiceImpl<SpaceMapper, Space> imp
                 .map(Object::toString)
                 .collect(Collectors.toList());
 
-        //
         // 4.把这个字符串进行拆分，合并统计一下每个标签出现的次数
         Map<String, Long> tagCountMap = tagsJsonList.stream()
                 .flatMap(tagsJson -> JSONUtil.toList(tagsJson, String.class).stream())
@@ -271,7 +270,7 @@ public class SpaceAnalyzeServiceImpl extends ServiceImpl<SpaceMapper, Space> imp
         // 3.按分组的字段排序
         queryWrapper.groupBy("period").orderByAsc("period");
 
-        // 查询结果并转换
+        // 4.查询结果并转换
         List<Map<String, Object>> queryResult = pictureService.getBaseMapper().selectMaps(queryWrapper);
         return queryResult.stream()
                 .map(result -> {

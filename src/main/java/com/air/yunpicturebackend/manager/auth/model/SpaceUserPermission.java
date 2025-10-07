@@ -6,6 +6,7 @@ import java.io.Serializable;
 
 /**
  * 空间成员权限
+ * 和权限文件中 permissions 数组中的对象对应
  */
 @Data
 public class SpaceUserPermission implements Serializable {

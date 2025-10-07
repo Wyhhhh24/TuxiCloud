@@ -1,5 +1,4 @@
 package com.air.yunpicturebackend.config;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
@@ -14,7 +13,7 @@ import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 public class JsonConfig {
 
     /**
-     * 但是，在测试؜中，如果你打开 F12 控制台，利用预览来查‌看响应数据，就会发现另一个问题：id 的最后‍两位好像都变成 0 了！
+     * 在测试؜中，如果你打开 F12 控制台，利用预览来查‌看响应数据，就会发现另一个问题：id 的最后‍两位好像都变成 0 了！
      * 但是在响应中、以及 Swagger 中查看，却是正常的
      *
      * 添加 Long 转 json 精度丢失的配置

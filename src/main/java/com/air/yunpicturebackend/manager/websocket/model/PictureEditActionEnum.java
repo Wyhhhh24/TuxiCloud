@@ -4,6 +4,7 @@ import lombok.Getter;
 
 /**
  * 图片编辑动作枚举
+ * 本项目中，目前支持的对图片的编辑操作
  */
 @Getter
 public enum PictureEditActionEnum {

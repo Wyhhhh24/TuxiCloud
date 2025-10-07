@@ -33,9 +33,9 @@ public class AuthInterceptor {
      *
      * @param joinPoint 切入点
      * @param authCheck 权限校验注解
+     * 定义对哪些方法进行拦截
+     * 这是一个切点，就是你想要在哪些地方去执行这里面的代码
      */
-    //定义对哪些方法进行拦截
-    //这是一个切点，就是你想要在哪些地方去执行这里面的代码
     @Around("@annotation(authCheck)")
     public Object doInterceptor(ProceedingJoinPoint joinPoint, AuthCheck authCheck) throws Throwable {
         // 可以通过这个 joinPoint 来知道我们到底对哪个方法进行了拦截  authCheck 这是我们刚刚自己定义的注解
@@ -78,6 +78,7 @@ public class AuthInterceptor {
             //拒绝
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
         }
+
         // 该用户通过了权限校验，放行
         return joinPoint.proceed();
     }

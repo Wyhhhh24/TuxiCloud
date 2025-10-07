@@ -123,7 +123,7 @@ public class WsHandshakeInterceptor implements HandshakeInterceptor {
             // 这里的 pictureId 从 String 类型转换为 Long 类型
             return true;
         }
-        return true;
+        return false;
     }
 
     @Override

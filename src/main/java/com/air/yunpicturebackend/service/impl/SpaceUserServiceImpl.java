@@ -56,7 +56,7 @@ public class SpaceUserServiceImpl extends ServiceImpl<SpaceUserMapper, SpaceUser
         // 1.参数校验
         SpaceUser spaceUser = new SpaceUser();
         BeanUtils.copyProperties(spaceUserAddRequest, spaceUser);
-        // 校验传的参数，用户和角色以及设置的角色是否存在
+        // 校验传的参数，用户、空间以及设置的角色是否存在
         validSpaceUser(spaceUser, true);
         // 2.数据库操作
         boolean result = this.save(spaceUser);
@@ -85,7 +85,7 @@ public class SpaceUserServiceImpl extends ServiceImpl<SpaceUserMapper, SpaceUser
             Space space = spaceService.getById(spaceId);
             ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
         }
-        // 2.校验空间角色,如果管理员想要要修改用户在空间内的角色，需要校验传的这个角色是存在的
+        // 2.校验空间角色,如果管理员想要修改用户在空间内的角色，需要校验传的这个角色是存在的
         String spaceRole = spaceUser.getSpaceRole();
         SpaceRoleEnum spaceRoleEnum = SpaceRoleEnum.getEnumByValue(spaceRole);
         if (spaceRole != null && spaceRoleEnum == null) {

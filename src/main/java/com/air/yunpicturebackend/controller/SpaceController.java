@@ -70,11 +70,11 @@ public class SpaceController {
      */
     @PostMapping("/add")
     public BaseResponse<Long> addSpace(@RequestBody SpaceAddRequest spaceAddRequest, HttpServletRequest request){
-        //参数校验不能为空
+        // 1.参数校验不能为空
         ThrowUtils.throwIf(spaceAddRequest == null, ErrorCode.PARAMS_ERROR);
-        //获取登录用户
+        // 2.获取登录用户
         User loginUser = userService.getLoginUser(request);
-        //创建空间
+        // 3.创建空间
         long newSpaceId = spaceService.addSpace(spaceAddRequest, loginUser);
         return ResultUtils.success(newSpaceId);
     }
@@ -114,12 +114,11 @@ public class SpaceController {
 
     /**
      * 更新空间（仅管理员可用）
-     * 管理员可以更改其它空间的级别，不可能用户随便自己修改空间级别
+     * 管理员可以更改其它空间的级别，用户不能修改空间级别
      */
     @PostMapping("/update")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> updateSpace(@RequestBody SpaceUpdateRequest spaceUpdateRequest) {
-
         // 1.参数校验
         if (spaceUpdateRequest == null || spaceUpdateRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -172,14 +171,17 @@ public class SpaceController {
     @GetMapping("/get/vo")
     public BaseResponse<SpaceVO> getSpaceVOById(long id, HttpServletRequest request) {
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR,"空间 id 不存在");
-        // 查询数据库
+        // 1.查询数据库
         Space space = spaceService.getById(id);
         ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR,"未查询到该空间");
+        // 2.构建 VO 对象，里面是含有用户信息字段、权限列表字段
         SpaceVO spaceVO = spaceService.getSpaceVO(space, request);
         User loginUser = userService.getLoginUser(request);
+        // 3.根据用户在该空间的角色，获取权限列表
         List<String> permissionList = spaceUserAuthManager.getPermissionList(space, loginUser);
+        // 4.封装权限，因为当用户点击空间详情接口的时候，可以根据权限展示对应的按钮
         spaceVO.setPermissionList(permissionList);
-        // 获取封装类
+        // 5.返回结果
         return ResultUtils.success(spaceVO);
     }
 

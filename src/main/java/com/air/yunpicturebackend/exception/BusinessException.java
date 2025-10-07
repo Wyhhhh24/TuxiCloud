@@ -5,8 +5,8 @@ import lombok.Getter;
 /**
  * @author WyH524
  * @since 2025/8/26 下午3:38
+ * 自定义业务异常，一个异常一般包含错误码和错误信息
  */
-//自定义业务异常
 @Getter
 public class BusinessException extends RuntimeException{
     /**

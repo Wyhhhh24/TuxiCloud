@@ -10,7 +10,6 @@ import java.io.Serializable;
  */
 @Data
 public class SpaceAnalyzeRequest implements Serializable {
-
     /**
      * 空间 ID
      */

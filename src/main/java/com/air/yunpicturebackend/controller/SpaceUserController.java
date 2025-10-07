@@ -39,7 +39,7 @@ public class SpaceUserController {
     private UserService userService;
 
     /**
-     * 添加成员到空间：仅拥有成员管理权限的用户可使用。
+     * 添加成员到空间：仅拥有成员管理权限的用户可使用
      * 从空间移除成员：仅拥有成员管理权限的用户可使用。
      * 查询某个成员在空间的信息：仅拥有成员管理权限的用户可使用。
      * 查询空间成员列表：仅拥有成员管理权限的用户可使用。
@@ -66,8 +66,7 @@ public class SpaceUserController {
      */
     @PostMapping("/delete")
     @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.SPACE_USER_MANAGE)
-    public BaseResponse<Boolean> deleteSpaceUser(@RequestBody DeleteRequest deleteRequest,
-                                                 HttpServletRequest request) {
+    public BaseResponse<Boolean> deleteSpaceUser(@RequestBody DeleteRequest deleteRequest) {
         // 1. 校验参数
         if (deleteRequest == null || deleteRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -84,7 +83,7 @@ public class SpaceUserController {
 
 
     /**
-     * 查询团队空间内的成员信息
+     * 查询团队空间内的成员信息（空间的管理员使用）
      * 单条记录的查询
      */
     @PostMapping("/get")
@@ -105,12 +104,11 @@ public class SpaceUserController {
 
 
     /**
-     * 查询成员信息列表
+     * 查询成员信息列表（空间管理员使用）
      */
     @PostMapping("/list")
     @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.SPACE_USER_MANAGE)
-    public BaseResponse<List<SpaceUserVO>> listSpaceUser(@RequestBody SpaceUserQueryRequest spaceUserQueryRequest,
-                                                         HttpServletRequest request) {
+    public BaseResponse<List<SpaceUserVO>> listSpaceUser(@RequestBody SpaceUserQueryRequest spaceUserQueryRequest) {
         // 1.校验参数
         ThrowUtils.throwIf(spaceUserQueryRequest == null, ErrorCode.PARAMS_ERROR);
         // 2.传入的是 空间id ，查询空间中的成员列表
@@ -123,25 +121,28 @@ public class SpaceUserController {
 
 
     /**
-     * 编辑成员信息（设置权限）
+     * 编辑成员信息（设置权限，也就是设置该用户在空间中的角色）
      */
     @PostMapping("/edit")
     @SaSpaceCheckPermission(value = SpaceUserPermissionConstant.SPACE_USER_MANAGE)
-    public BaseResponse<Boolean> editSpaceUser(@RequestBody SpaceUserEditRequest spaceUserEditRequest,
-                                               HttpServletRequest request) {
+    public BaseResponse<Boolean> editSpaceUser(@RequestBody SpaceUserEditRequest spaceUserEditRequest) {
         // 1.参数校验
         if (spaceUserEditRequest == null || spaceUserEditRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
+
         // 2.将 DTO 转换为 实体类
         SpaceUser spaceUser = new SpaceUser();
         BeanUtils.copyProperties(spaceUserEditRequest, spaceUser);
-        // 3.参数校验，判断所所修改的角色是否存在
+
+        // 3.参数校验，判断所修改的角色是否存在
         spaceUserService.validSpaceUser(spaceUser, false);
+
         // 4.判断所操作的记录是否存在是否存在
         long id = spaceUserEditRequest.getId();
         SpaceUser oldSpaceUser = spaceUserService.getById(id);
         ThrowUtils.throwIf(oldSpaceUser == null, ErrorCode.NOT_FOUND_ERROR);
+
         // 5.操作数据库
         boolean result = spaceUserService.updateById(spaceUser);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);

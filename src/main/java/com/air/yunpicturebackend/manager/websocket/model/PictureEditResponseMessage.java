@@ -4,11 +4,16 @@ import com.air.yunpicturebackend.model.vo.UserVO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * @author WyH524
  * @since 2025/9/25 16:35
- * 服务器后端要发送给前端客户端的一个消息
+ * 服务器后端可以给给前端客户端发送消息
  * 就比如说用户现在它执行了一个操作，现在是不是要告诉其它用户现在执行的是什么操作
  *
  * 图片编辑响应消息
@@ -35,7 +40,7 @@ public class PictureEditResponseMessage {
     private String editAction;
 
     /**
-     * 用户信息，当前哪个用户正在编辑，这个也是需要返回给前端的
+     * 用户信息，当前哪个用户加入编辑、哪个用户正在编辑，这类消息是得要设置用户信息进来，发送给前端的
      * 我们的需求中有一个是某一个用户在编辑时，其它用户要看到谁正在编辑，如果不告诉当前正在编辑的用户是谁这个需求就实现不了
      */
     private UserVO user;

@@ -9,11 +9,11 @@ import java.io.Serializable;
 /**
  * 查询空间请求
  * 我们可以按照哪些字段来搜索空间
+ * 继承通用的分页请求类
  */
 @EqualsAndHashCode(callSuper = true)
 @Data
 public class SpaceQueryRequest extends PageRequest implements Serializable {
-    //首先继承我们通用的分页请求类
 
     /**
      * id

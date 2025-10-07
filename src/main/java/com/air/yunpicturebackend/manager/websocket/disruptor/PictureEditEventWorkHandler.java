@@ -24,9 +24,10 @@ import javax.annotation.Resource;
  * 图片编辑事件处理器（消费者）
  */
 @Slf4j
-@Component                // 需要实现 Disruptor 的消费者接口，泛型就是我们要处理的事件类型，就是刚刚定义的 PictureEditEvent
+@Component                // 需要实现 Disruptor 的消费者接口，泛型就是事件类型，这是可以自定义的，也就是如果要处理消息要传的必要参数，可以封装到这个类里面，等同于事件
 public class PictureEditEventWorkHandler implements WorkHandler<PictureEditEvent> {
 
+    // 我们得要使用 PictureEditHandler 中定义的处理消息的方法
     @Resource
     PictureEditHandler pictureEditHandler;
 
@@ -34,7 +35,7 @@ public class PictureEditEventWorkHandler implements WorkHandler<PictureEditEvent
     private UserService userService;
 
     /**
-     * 和消息队列一样了，提供了一个方法，当我们接收了事件之后，怎么处理，传来了参数就是我们的事件对象
+     * 和消息队列一样了，我们提供一个方法，当队列接收了事件之后，就通过这个方法进行处理，参数就是我们定义的事件对象，放到队列中的事件
      * 处理事件的函数
      */
     @Override

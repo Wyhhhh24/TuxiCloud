@@ -32,25 +32,27 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * 图片编辑 WebSocket 处理器
  * 定义一些 WebSocket 的处理器去处理对应的消息
- * 如果客户端给我们服务器发送了用户进入编辑退出编辑，执行图片操作等信息的时候，我们应该怎么处理
+ * 如果客户端给我们服务器发送了用户进入编辑、退出编辑、执行图片操作等信息的时候，我们应该怎么处理
  */
-@Slf4j
-@Component             //这里继承这个类，我们等会都是用 json 完成前后端的交互，能以字符串的方式发‍送和接受消息，所以这里使用文本的 WebSocket 处理器
+@Slf4j       // 这里继承的是这个类，我们等会都是用 json 完成前后端的交互，是以字符串的方式发‍送和接受消息，所以这里继承的使用文本的 WebSocket 处理器
+@Component           // 需要重写几个方法
 public class PictureEditHandler extends TextWebSocketHandler {
 
     /**
+     * 每张图片对应正在编辑的用户
      * 保存当前正在编辑的用户 id，执行编辑操作、进入或退出编辑时都会校验。
-     * 每张图片的编辑状态，key: pictureId, value: 当前正在编辑的用户 ID
-     * 我们需求中明确了一点，同时只能有一个用户进入编辑，我们怎么知道有用户进入编辑了呢？是不是需要把当前正在编辑的用户给存下来
-     * 对应一个图片只能有一个用户正在编辑
+     * 每张图片的编辑状态，key: pictureId, value: 当前正在编辑的 userId
+     * 我们需求中明确了一点，同时只能有一个用户进入编辑，我们怎么知道有用户进入编辑了呢？是不是需要把某张照片当前正在编辑的用户给存下来
+     * 一个图片只能有一个用户正在编辑
      */
     private final Map<Long, Long> pictureEditingUsers = new ConcurrentHashMap<>();
 
     /**
+     * 每张图片有哪些用户在操作这张图片
      * 保存参与编辑图片的用户 WebSocket 会话的集合。
-     * 保存所有连接的会话，key: pictureId, value: 用户会话集合，WebSocketSession 的集合，WebSocketSession 就是 SpringWebSocket 为我们提供的 WebSocket 的会话类
-     * 我们一定要使用 并发的HashMap ，因为接下来我们无论有多少个连接，都是要调用相同这个类的这些方法，都要同时去操作这个集合，为了保证线程安全，为了防止有些数据不要丢失
-     * 所以使用线程安全的这个HashMap
+     * 保存所有连接的会话，key: pictureId, value: WebSocketSession 的集合（用户会话集合），WebSocketSession 就是 SpringWebSocket 为我们提供的 WebSocket 会话类
+     * 我们一定要使用 并发的 HashMap ，因为接下来我们无论有多少个连接，都是要调用相同这个类的这些方法，都要同时去操作这个集合，为了保证线程安全，为了防止有些数据不要丢失
+     * 所以使用线程安全的这个 HashMap
      */
     private final Map<Long, Set<WebSocketSession>> pictureSessions = new ConcurrentHashMap<>();
 
@@ -62,7 +64,7 @@ public class PictureEditHandler extends TextWebSocketHandler {
     private PictureEditEventProducer pictureEditEventProducer;
 
     /**
-     * 建立连接成功之后
+     * 用户与服务端建立会话连接成功之后，会执行这个方法
      */
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -71,7 +73,7 @@ public class PictureEditHandler extends TextWebSocketHandler {
         // 1.1.从 session 属性中拿到当前会话的用户信息，pictureId
         Long pictureId = (Long)session.getAttributes().get("pictureId");
         User user = (User)session.getAttributes().get("user");
-        // 如果会话集合中 pictureId 还没有任何用户加入到编辑中，Set 是为空的，首次加入的时候，先初始化这个集合，把 pictureId 放到这个 Map 中
+        // 如果会话集合中 pictureId 还没有任何用户加入到编辑中，Set 是为空的，首次加入的时候，先初始化这个集合，然后再把 pictureId 放到这个 Map 中
         pictureSessions.putIfAbsent(pictureId,ConcurrentHashMap.newKeySet());
         pictureSessions.get(pictureId).add(session);
 
@@ -82,19 +84,21 @@ public class PictureEditHandler extends TextWebSocketHandler {
         pictureEditResponseMessage.setMessage(message);
         pictureEditResponseMessage.setUser(userService.getUserVO(user)); // 设置脱敏的用户信息
 
-        // 3.将这个响应广播给这张图片的所有用户
+        // 3.将这个响应广播给这张图片的所有用户，包括自己
         broadcastToPicture(pictureId, pictureEditResponseMessage);
     }
 
     /**
      * 收到前端发送的消息，，根据消息类别处理消息
-     * 前端给我们的服务器发送了一个请求，我们收到请求之后，就根据用户发的消息来通知其它的客户端，把这个消息进行一个同步
+     * 前端给我们的服务器发送了一个请求，我们收到请求之后，就根据用户发的消息来通知其它的客户端，把这个消息进行一个处理，广播啥的
      * 就和我们自己写 controller 一样的道理，根据不同的请求找到不同的方法
      *
+     * 使用 Disruptor 处理消息
      * 要定义一个事件，因为我们队列是要接收任务、接收事件的，我们要把这个消息处理当作一个事件，我们是要分为生产者、消费者和事件
-     * handleTextMessage 中就是接收 WebSocket 传过来的消息进行处理，这个就是生产者，处理传过来的消息
-     * handleEnterEditMessage、handleExitEditMessage、handleEditActionMessage 这些都是生产者
-     * 原本在 WebSocket 处理函数 handleTextMessage 中要顺序执行，现在只要把处理消息的代码当作一个事件去发送，那就相当于直接往消息队列里面发一个事件了
+     * handleTextMessage 中就是接收 WebSocket 传过来的消息进行处理，这个就是生产者，接收传过来的消息发送到消息队列中
+     * handleEnterEditMessage、handleExitEditMessage、handleEditActionMessage 这些处理消息的方法就放到消费者里面去
+     * 原本在 WebSocket 处理函数 handleTextMessage 中要顺序执行，现在只要把处理消息的代码当作一个事件去发送，那就相当于直接往消息队列里面发一个事件
+     * 实现
      */
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
@@ -125,7 +129,7 @@ public class PictureEditHandler extends TextWebSocketHandler {
 //                pictureEditResponseMessage.setType(PictureEditMessageTypeEnum.ERROR.getValue());
 //                pictureEditResponseMessage.setMessage("消息类型错误");
 //                pictureEditResponseMessage.setUser(userService.getUserVO(user));
-//                // 解决精度丢失问题
+//                // 解决精度丢失问题，长整型转换成 json 的时候会精度丢失
 //                ObjectMapper objectMapper = new ObjectMapper(); // 创建 jackson 库的 ObjectMapper
 //                SimpleModule module = new SimpleModule();
 //                module.addSerializer(Long.class, ToStringSerializer.instance);
@@ -137,9 +141,9 @@ public class PictureEditHandler extends TextWebSocketHandler {
 
         // 3.根据消息类型处理消息（生产消息到 disruptor 环形队列中）
         // 以后如果说同时来了 10w 个请求，我们现在的线程操作已经是异步的了，首先现在 10w 个请求来了，我们只会提交完事件
-        // 接下来立刻就返回了，这个请求就返回了，这个 WebSocket 就可以继续去接收更多的请求了
+        // 这个请求就返回了，这个 WebSocket 就可以继续去接收更多的请求了
         // 而我们的后端，会有 WorkHandler 消费者，默默地去使用额外地线程去处理这些操作
-        // 那它是怎么处理地呢？它会按照生产任务地顺序，依次从任务队列中取出来任务进行执行，这样我们就实现了处理消息和接收消息的解耦
+        // 那它是怎么处理地呢？它会按照生产任务地顺序，依次从任务队列中取出来任务进行执行，这样我们就实现了处理消息和接收消息的解耦，避免阻塞
         pictureEditEventProducer.publishEvent(pictureEditRequestMessage,session,user,pictureId);
     }
 
@@ -147,7 +151,7 @@ public class PictureEditHandler extends TextWebSocketHandler {
      * 进入编辑状态
      */
     public void handleEnterEditMessage(PictureEditRequestMessage pictureEditRequestMessage, WebSocketSession session, User user, Long pictureId) throws IOException {
-        // 1.没有用户正在编辑该图片的时候，当前用户才可以进入编辑状态，看一下 Map 中有没有 pictureId 这个 Key ，有话说明有用户正在编辑
+        // 1.没有用户正在编辑该图片的时候，当前用户才可以进入编辑状态，看一下 Map 中有没有 pictureId 这个 Key ，有的话说明有用户正在编辑，不能加入
         if(!pictureEditingUsers.containsKey(pictureId)){
             // 1.1.设置当前用户正在编辑图片
             pictureEditingUsers.put(pictureId,user.getId());
@@ -218,7 +222,7 @@ public class PictureEditHandler extends TextWebSocketHandler {
 
 
     /**
-     * 客户端退出连接，关闭了这个连接之后，释放一些资源
+     * 客户端退出连接，关闭了这个连接之后，我们需要释放一些资源
      */
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {

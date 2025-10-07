@@ -1,5 +1,4 @@
 package com.air.yunpicturebackend.manager.upload;
-
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.http.HttpResponse;
@@ -10,12 +9,11 @@ import com.air.yunpicturebackend.exception.BusinessException;
 import com.air.yunpicturebackend.exception.ErrorCode;
 import com.air.yunpicturebackend.exception.ThrowUtils;
 import org.springframework.stereotype.Service;
-
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Arrays;
-import java.util.List;
+
+import static com.air.yunpicturebackend.constant.CommonConstant.ALLOW_CONTENT_TYPES;
 
 /**
  * @author WyH524
@@ -29,8 +27,8 @@ public class UrlPictureUpload extends PictureUploadTemplate {
         String fileUrl = (String) inputSource;
         ThrowUtils.throwIf(StrUtil.isBlank(fileUrl), ErrorCode.PARAMS_ERROR, "文件地址不能为空");
 
+        // 1. 验证 URL 格式
         try {
-            // 1. 验证 URL 格式
             new URL(fileUrl); // 验证是否是合法的 URL
         } catch (MalformedURLException e) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件地址格式不正确");
@@ -40,7 +38,7 @@ public class UrlPictureUpload extends PictureUploadTemplate {
         ThrowUtils.throwIf(!(fileUrl.startsWith("http://") || fileUrl.startsWith("https://")),
                 ErrorCode.PARAMS_ERROR, "仅支持 HTTP 或 HTTPS 协议的文件地址");
 
-        // 3. 发送 HEAD 请求以验证文件是否存在
+        // 3. 发送 HEAD 请求以验证文件是否存在，可以通过 HEAD 请求验证文件是否存在
         HttpResponse response = null;
         try {
             response = HttpUtil.createRequest(Method.HEAD, fileUrl).execute();
@@ -58,8 +56,6 @@ public class UrlPictureUpload extends PictureUploadTemplate {
                 // HTTP 协议和浏览器的约定 当文件通过 HTTP 上传时
                 // Content-Type 请求头会携带完整的 MIME 类型（如 image/jpeg）
                 // 如果校验时只写 "jpeg" 或 "jpg"，会导致匹配失败，多写其它匹配项。
-                final List<String> ALLOW_CONTENT_TYPES = Arrays.asList("image/jpeg", "image/jpg",
-                        "image/png", "image/webp");
                 ThrowUtils.throwIf(!ALLOW_CONTENT_TYPES.contains(contentType.toLowerCase()),
                         ErrorCode.PARAMS_ERROR, "文件类型错误");
             }
@@ -88,15 +84,17 @@ public class UrlPictureUpload extends PictureUploadTemplate {
     @Override
     protected String getOriginFilename(Object inputSource) {
         String fileUrl = (String) inputSource;
-        //从文件路径或URL中提取文件名的名称（需要包含扩展名）
-        //例如：https://example.com/path/to/sunset.png 返回的是 sunset.png
-        return FileUtil.getName(fileUrl);
+        // 去除URL中的查询参数（?及后面的内容）
+        String cleanUrl = fileUrl.split("\\?")[0];
+        // 从清理后的URL中提取文件名
+        return FileUtil.getName(cleanUrl);
     }
+
 
     @Override
     protected void processFile(Object inputSource, File file) throws Exception {
         String fileUrl = (String) inputSource;
-        //下载文件到临时文件
+        // 调用工具，下载图片文件到临时文件中
         HttpUtil.downloadFile(fileUrl, file);
     }
 }

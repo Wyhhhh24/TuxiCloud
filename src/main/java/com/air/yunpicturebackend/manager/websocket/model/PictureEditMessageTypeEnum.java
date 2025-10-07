@@ -10,6 +10,7 @@ import lombok.Getter;
  * 后面要多次用到这些枚举的具体的值，所以最好定义枚举类
  *
  * 图片编辑消息类型枚举
+ * 服务端和客户端之间通讯可能会发送的消息类型
  */
 @Getter
 public enum PictureEditMessageTypeEnum {

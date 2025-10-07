@@ -55,6 +55,4 @@ public class PictureEditEventDisruptorConfig {
         // 返回对象
         return disruptor;
     }
-
-
 }

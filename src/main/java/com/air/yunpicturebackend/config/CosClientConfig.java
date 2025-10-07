@@ -10,7 +10,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
+ * 通过 @ConfigurationProperties 注解
  * 将配置文件中的值自动填充到对应字段上
+ * secret-id -> secretId
+ * secret_key -> secretKey
  */
 @Configuration
 @ConfigurationProperties(prefix = "cos.client")
@@ -32,7 +35,7 @@ public class CosClientConfig {
     private String secretKey;
 
     /**
-     * 区域
+     * 域名 https://xxx.cos.ap-guangzhou.myqcloud.com
      */
     private String region;
 
@@ -42,7 +45,7 @@ public class CosClientConfig {
     private String bucket;
 
     /**
-     * 在配置类中，同时也可以注册一个 Bean ，COS 客户端
+     * 在配置类中，同时也可以注册一个 Bean ，初始化 COS 客户端
      */
     @Bean
     public COSClient cosClient() {

@@ -58,14 +58,15 @@ public class UserController {
      */
     @PostMapping("/login")
     public BaseResponse<LoginUserVO> userLogin(@RequestBody UserLoginRequest userLoginRequest, HttpServletRequest request){
-        //参数判断
+        // 1.参数判断
         ThrowUtils.throwIf(userLoginRequest == null, ErrorCode.PARAMS_ERROR);
-
+        // 2.登录
         LoginUserVO loginUserVO = userService.userLogin(userLoginRequest.getUserAccount(),
                 userLoginRequest.getUserPassword(),
                 request);
         return ResultUtils.success(loginUserVO);
     }
+
 
     /**
      * 获取当前登录用户
@@ -78,8 +79,9 @@ public class UserController {
         return ResultUtils.success(userService.getLoginUserVO(loginUser));
     }
 
+
     /**
-     * 用户注销
+     * 用户退出登录
      * @param request
      * @return
      */
@@ -89,7 +91,6 @@ public class UserController {
         boolean result = userService.userLogout(request);
         return ResultUtils.success(result);
     }
-
 
 
     /**
@@ -102,7 +103,7 @@ public class UserController {
         User user = new User();
         BeanUtils.copyProperties(userAddRequest, user);
         // 默认密码 12345678
-        final String DEFAULT_PASSWORD = "12345678";
+        final String DEFAULT_PASSWORD = "123456";
         String encryptPassword = userService.getEncryptPassword(DEFAULT_PASSWORD);
         user.setUserPassword(encryptPassword);
         boolean result = userService.save(user);
@@ -123,6 +124,7 @@ public class UserController {
         return ResultUtils.success(user);
     }
 
+
     /**
      * 根据 id 获取用户信息 UserVO
      */
@@ -132,6 +134,7 @@ public class UserController {
         User user = response.getData();
         return ResultUtils.success(userService.getUserVO(user));
     }
+
 
     /**
      * 删除用户

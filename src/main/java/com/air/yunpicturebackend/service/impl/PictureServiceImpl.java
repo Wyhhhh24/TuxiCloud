@@ -89,15 +89,15 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
      * @param pictureUploadRequest
      * @param loginUser
      * @return
-     * 上传图片，现在有了空间概念，如果又 spaceId 的话，就得校验空间权限，如果更新图片的话，就得判断原图片是否是自己的，不能修改别人的图片，管理员可以
+     * 上传图片，现在有了空间概念，如果有指定 spaceId 的话，就得校验空间权限
+     * 如果更新图片的话，就得判断原图片是否是自己的，不能修改别人的图片，管理员才有权限
      */
     @Override
     public PictureVO uploadPicture(Object inputSource , PictureUploadRequest pictureUploadRequest, User loginUser) {
         //1.校验参数(如果用户没登录，就不能上传文件)
         ThrowUtils.throwIf(loginUser == null, ErrorCode.NO_AUTH_ERROR);
 
-
-        //2.如果 spaceId 不为 null ，那么就是将图片上传到私有空间，所以需要进行权限的校验，空间大小的校验
+        //2.如果 spaceId 不为 null ，那么就是将图片上传到私有空间或者团队空间，所以需要进行权限的校验，空间大小的校验
         Long spaceId = null;
         if(pictureUploadRequest != null){
             spaceId = pictureUploadRequest.getSpaceId();
@@ -106,11 +106,12 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             Space space = spaceService.getById(spaceId);
             ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR,"空间不存在");
 
-            // 校验是否有空间权限，只能上传到自己的空间以及公共图库
+            // 统一使用了 sa-token 进行权限校验，没有权限是进不到这个方法里面的
+            // 校验是否有该用户是否有权限，只能上传到自己的空间以及公共图库
             // 改为统一的权限校验逻辑，以前是只有私有空间，只有空间的创建人才能去上传，但是现在我们不是只有私有空间了
-            // 有团队协作空间了，即使不是空间的创建人，但是如果它是空间的编辑者，它有权限，我们现在统一使用了 sa-token 进行权限校验
-//            if(!loginUser.getId().equals(space.getUserId()))
-//                throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"没有空间权限");
+            // 有团队空间了，即使不是空间的创建人，但是如果它是空间的编辑者，它有权限，我们现在
+            // if(!loginUser.getId().equals(space.getUserId()))
+            // throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"没有空间权限");
 
             // 校验额度，上传图片到自己的私有空间中，第一步都是先校验额度是否已满
             if (space.getTotalCount() >= space.getMaxCount()) {
@@ -121,41 +122,42 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             }
         }
 
-        //2.判断是新增图片还是更新图片，从 PictureUploadRequest 中看是能否获取得到 pictureId , null 就新增，有就更新
+        // 3.判断是新增图片还是更新图片，从 PictureUploadRequest 中看是能否获取得到 pictureId , null 就新增，否则就更新
         Long pictureId = null;
         if(pictureUploadRequest != null){
             pictureId = pictureUploadRequest.getId();
         }
 
-        //3.如果是更新，需要进行逻辑判断，现在又添加了 SpaceId ，下面需要添加一点逻辑
+        // 4.如果是更新图片，需要进行逻辑判断，现在又添加了 SpaceId ，下面需要添加一点逻辑
         if(pictureId != null){
-            // 查找老的图片
+            // 4.1.查找旧图片记录
             Picture oldPicture = getById(pictureId);
             ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR,"图片不存在");
 
-            // 改为统一的权限校验逻辑
+            // 改为统一的权限校验逻辑，若没有权限进入不到这个方法中来
             // 添加判断的逻辑，现在用户和管理员都可以更新图片，如果该图片既不是自己的，同时他又不是管理员的，就不能更新图片
-//            if(!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)){
-//                throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"仅本人或管理员可更新图片");
-//            }
+            // if(!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)){
+            //     throw new BusinessException(ErrorCode.NO_AUTH_ERROR,"仅本人或管理员可更新图片");
+            // }
 
-            // 搞不好还有一种情况，它更新图片的时候传入的 spaceId 和它创建图片时传入的 spaceId 不同，这样就会出现一种漏洞
+            // 搞不好还有一种情况，它更新图片的时候传入的 spaceId 和它创建图片时传入的 spaceId 不同，这样就会出现漏洞了
             // 我们老图片传入了空间 A ，但是现在更新传入空间的时候，指定 spaceId 是 B ，这不就有问题了吗，为了严谨
+            // 也就是旧记录中的 spaceId 要与传过来的 spaceId 一致
             // 还要校验当前传的这个空间 id 是否和原本图片的 spaceId 一致，如果这一次它没有传 spaceId ，那么我们就直接复用原本的 spaceId ，更新原来那个空间的图片
-            // 这样也兼顾了公共图库，如果空间id为null，就是传入公共图库
+            // 这样也兼顾了公共图库，如果空间id为 null ，就是传入公共图库
 
-            // 没传 spaceId ，则复用原有图片的 spaceId ,（这样也复用了公共图库）
+            // 没传 spaceId ，则复用原有图片的 spaceId （这样也复用了公共图库）
             if(spaceId == null){
                 spaceId = oldPicture.getSpaceId();
             }else{
-                // 传入了 spaceId ，必须和原来图的 spaceId 一致
+                // 传入了 spaceId ，必须和旧图记录的 spaceId 一致
                 if(!oldPicture.getSpaceId().equals(spaceId)){
-                    throw new BusinessException(ErrorCode.PARAMS_ERROR,"上传的空间与原图的空间不一致");
+                    throw new BusinessException(ErrorCode.PARAMS_ERROR,"上传的空间与原记录的空间不一致");
                 }
             }
         }
 
-        // 3.上传图片，得到图片信息（如果图片存在，无论是更新还是第一次上传，都是要上传图片）
+        // 5.上传图片，得到图片信息（无论是更新还是创建图片，都需要上传）
         // 前缀，我们可以按照 userId 来划分目录，由于我们这个项目是公共图库，所以每一个用户就有自己的一个目录
         // 之后我们去开发私有空间，什么企业空间，专属空间，所以我们现在给前缀进行划分
         // 把所有公开的图片上传到 public 目录下，之后如果有私有就上传到 private 目录下，按照 userId 划分目录
@@ -166,13 +168,13 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             // 公共图库
             uploadPathPrefix = String.format("public/%s", loginUser.getId());
         }else {
-            // 私有空间
+            // 私有空间或者团队空间
             uploadPathPrefix = String.format("space/%s", spaceId);
         }
 
 
         // 上传，并得到我们解析之后的信息
-        // 根据 inputSource 类型区分上传方式
+        // 根据 inputSource 类型区分上传方式，本地图片上传还是 URL 上传
         PictureUploadTemplate pictureUploadTemplate = filePictureUpload;
         if(inputSource instanceof String){
             pictureUploadTemplate = urlPictureUpload;
@@ -195,13 +197,14 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             picName = pictureUploadRequest.getPicName();
         }
 
-        // 数据万象返回的主色调的RGB值，有时候会少一位，存在 bug ，这里添加一步转换 位标准颜色
+        // 数据万象返回的主色调的RGB值，有时候会少一位，存在 bug ，这里添加一步转换     位标准颜色
         picture.setPicColor(ColorTransformUtils.getStandardColor(uploadPictureResult.getPicColor()));
 
         picture.setName(picName);
         picture.setUserId(loginUser.getId());
         picture.setSpaceId(spaceId); //空间id
 
+        // TODO 这里需要改一下吧，例如如果是上传到公共图库需要审核，但是上传到私人空间以及私有空间可以直接审核通过
         // 上传图片成功之后，填充审核的信息
         // 如果是管理员上传或者更新图片，则审核自动通过 填充全部的 review 信息
         // 如果是用户上传或者更新图片，则审核未通过，只填充 reviewStatus
@@ -227,7 +230,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             // 插入图片都没有成功就不用更新额度了
             ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "图片上传失败");
 
-            // 上传图片成功之后，判断上传的公共图库还是私有图库，公共图库的话就不用更新剩余额度，就不用操作空间表了
+            // 上传图片成功之后，判断上传的公共图库还是私有图库，公共图库的话就不用更新剩余额度，就不用操作空间表
             if (finalSpaceId != null) {
                 boolean update = spaceService.lambdaUpdate()
                         .eq(Space::getId, finalSpaceId)
@@ -239,8 +242,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             return picture;
         });
 
-        // todo 如果是替换了图片，我们需要把 COS 中的图片也删除掉，同时还需要更新空间的额度，也就是如果是更新操作的话，
-        //  在上面更新额度的时候，得要加上原本图片大小，但是没什么必要
+        // todo 如果是替换了图片，我们需要把 COS 中的图片也删除掉，同时还需要更新空间的额度，也就是如果是更新操作的话，在上面更新额度的时候，得要加上原本图片大小，但是没什么必要
 
         // 返回VO对象
         return PictureVO.objToVo(picture);
@@ -256,12 +258,13 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
     public CreateOutPaintingTaskResponse createPictureOutPaintingTask(CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest, User loginUser) {
         // 1.获取图片信息
         Long pictureId = createPictureOutPaintingTaskRequest.getPictureId();
+
         // 2.判断该图片是否存在
         Picture picture = Optional.ofNullable(this.getById(pictureId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND_ERROR));
 
         // 3.判断该图片用户是否具有操作权限，如果是公共图片，用户身份必须是本人或者管理员；如果是私有图片，该图片必须是自己空间中的图片才有权限操作该图片
-        //校验权限，已经改为使用注解鉴权
+        // 校验权限，已经改为使用注解鉴权
         //checkPictureAuth(loginUser, picture);
 
         // 4.构造请求参数
@@ -269,9 +272,11 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         CreateOutPaintingTaskRequest.Input input = new CreateOutPaintingTaskRequest.Input();
         input.setImageUrl(picture.getUrl());
         taskRequest.setInput(input);
+
+        // 4.1.将请求类中的 CreateOutPaintingTaskRequest.Parameters 直接复制到这个请求任务对象中
         BeanUtil.copyProperties(createPictureOutPaintingTaskRequest, taskRequest);
 
-        // 4.创建任务
+        // 5.调用接口，创建任务
         return aliYunAiApi.createOutPaintingTask(taskRequest);
     }
 
@@ -286,16 +291,18 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
      */
     @Override
     public Integer uploadPictureByBatch(PictureUploadByBatchRequest pictureUploadByBatchRequest, User loginUser) {
-        // 搜索词
+        // 1.搜索词不能为空
         String searchText = pictureUploadByBatchRequest.getSearchText();
-        // 抓取数量
+        ThrowUtils.throwIf(StrUtil.isBlank(searchText), ErrorCode.PARAMS_ERROR, "搜索词不能为空");
+
+        // 2.抓取数量
         Integer count = pictureUploadByBatchRequest.getCount();
         ThrowUtils.throwIf(count > 30, ErrorCode.PARAMS_ERROR, "抓取数量，最多 30 条");
 
-        // 要抓取的地址  ，将关键词，拼接到搜索地址中
+        // 3.要抓取的地址，将搜索词，拼接到搜索地址中
         String fetchUrl = String.format("https://cn.bing.com/images/async?q=%s&mmasync=1", searchText);
 
-        // 使用 jsoup 抓取页面
+        // 4.使用 jsoup 抓取页面
         Document document;
         try {
             document = Jsoup.connect(fetchUrl).get();
@@ -304,35 +311,37 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "获取页面失败");
         }
 
-        // 解析页面
-        // 这个 Document 就把它当作一个最全的 HTML ，我们要根据 class 类名，根据一些 div 的 id 来获取对应的内容
+        // 5.解析页面
+        // 这个 Document 对象就把它当作是这个页面中最全的 HTML 文档，我们要根据 class 类名，根据一些 div 的 id 来获取对应的内容
         Element div = document.getElementsByClass("dgControl").first();
         // 只有一个，其实就是HTML元素，就是最外层的那个 div
         if (ObjUtil.isNull(div)) {
             //如果最外层的 div 都没有，我们也就获取不到里面的元素了，直接报错
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "获取元素失败");
         }
-        // 获取元素
+        // 6.获取元素 从 div 元素（一个父容器）中，选择所有同时满足以下条件的 <img> 标签：标签名是 img 。拥有CSS类名为 mimg（通过 .mimg 指定）。
         Elements imgElementList = div.select("img.mimg");
+
         // 定义常量，用于记录抓取的图片数
         int uploadCount = 0;
+
+        // 管理员设置的图片名称前缀
+        String namePrefix = pictureUploadByBatchRequest.getNamePrefix();
+        if (StrUtil.isBlank(namePrefix)) {
+            // 如果管理员没有指定图片名称前缀，则使用搜索关键词作为图片名称前缀
+            namePrefix = searchText;
+        }
+
         //遍历图片元素，依次上传
         for (Element imgElement : imgElementList) {
-            // 管理员设置的图片名称前缀
-            String namePrefix = pictureUploadByBatchRequest.getNamePrefix();
-            if (StrUtil.isBlank(namePrefix)) {
-                //如果管理员没有指定图片名称前缀，则使用搜索关键词作为图片名称前缀
-                namePrefix = searchText;
-            }
             String fileUrl = imgElement.attr("src");
             if (StrUtil.isBlank(fileUrl)) {
                 log.info("当前链接为空，已跳过: {}", fileUrl);
                 continue;
             }
 
-            // 处理图片上传地址，防止出现转义问题
+            // 处理图片上传地址，防止出现转义问题，将 ? 后面的参数截取掉，这些参数会导致 URL 出现转义问题
             int questionMarkIndex = fileUrl.indexOf("?");
-            // 将 ? 后面的参数截取掉，这些参数会导致 URL 出现转义问题
             if (questionMarkIndex > -1) {
                 fileUrl = fileUrl.substring(0, questionMarkIndex);
             }
@@ -340,7 +349,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             // 上传图片
             PictureUploadRequest pictureUploadRequest = new PictureUploadRequest();
             if (StrUtil.isNotBlank(namePrefix)) {
-                // 设置图片名称，序号连续递增
+                // 设置图片名称，拼接当前图片序号
                 pictureUploadRequest.setPicName(namePrefix + (uploadCount + 1));
             }
 
@@ -510,16 +519,16 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         Picture oldPicture = this.getById(pictureId);
         ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
 
+        // 已经改为使用统一的注解鉴权
         // 2.判断该图片，用户是否具有操作权限，如果是公共图片，用户身份必须是本人或者管理员；如果是私有图片，该图片必须是自己空间中的图片才有权限操作该图片
-        // 已经改为使用注解鉴权
-        //checkPictureAuth(loginUser, oldPicture);
+        // checkPictureAuth(loginUser, oldPicture);
 
         // 3.删除图片释放额度，操作两张表，所以要开启事务
         transactionTemplate.execute(status -> {
-            // 操作数据库
+            // 操作数据库，删除图片
             boolean result = this.removeById(pictureId);
             ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-            // 释放额度
+            // 释放空间额度
             Long spaceId = oldPicture.getSpaceId();
             if (spaceId != null) {
                 boolean update = spaceService.lambdaUpdate()
@@ -544,15 +553,11 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
     @Async
     @Override
     public void clearPictureFile(Picture picture) {
-        // 1.判断该图片的 url 在其它记录中是否有被使用，避免多条记录引用同一张图片也就是相同的 url ，图片秒传场景就会出现这种情况
-        // 但是我们这里没有这种情况，所以不需要
+        // 1.获取图片的 url
         String pictureUrl = picture.getUrl();
-//        Long count = lambdaQuery().eq(Picture::getUrl, pictureUrl).count();
-//        if(count > 1L){
-//            //有不止一条记录用到了该图片，不清理
-//            return;
-//        }
+
         // 2.清理 压缩图 和 缩略图 以及原图
+        // 从 url 中解析出各图在 bucket 中的存储路径 ： /public/picture/2023/07/01/xxx.png
         cosManager.deleteObject(pictureUrl.substring(pictureUrl.indexOf(".com") + 4));
         String thumbnailUrl = picture.getThumbnailUrl();
         if(StrUtil.isNotBlank(thumbnailUrl)){
@@ -576,23 +581,30 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         // 1.在此处将实体类和 DTO 进行转换
         Picture picture = new Picture();
         BeanUtils.copyProperties(pictureEditRequest, picture);
+
         // 2.注意将 list 转为 string
         if(CollUtil.isNotEmpty(pictureEditRequest.getTags())){
             picture.setTags(JSONUtil.toJsonStr(pictureEditRequest.getTags()));
         }
+
         // 3.设置编辑时间
         picture.setEditTime(new Date());
-        // 4.数据校验
+
+        // 4.数据校验，判断图片的基本信息是否符合格式
         this.validPicture(picture);
+
         // 5.判断该图片是否存在
         long id = pictureEditRequest.getId();
         Picture oldPicture = this.getById(id);
         ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
+
         // 6.校验当前用户是否有操作该图片的权限
-        // 已经改为注解鉴权
-        //checkPictureAuth(loginUser, oldPicture);
+        // 已经改为 sa-token 的统一鉴权
+        // checkPictureAuth(loginUser, oldPicture);
+
         // 7.补充审核参数
         this.fillReviewParams(picture, loginUser);
+
         // 8.操作数据库
         boolean result = this.updateById(picture);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
@@ -639,10 +651,11 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         Space space = spaceService.getById(spaceId);
         ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR,"该空间不存在");
 
+        // 使用注解鉴权了
         // 2.如果用户不是该空间的创建者，则没有权限
-        if (!loginUser.getId().equals(space.getUserId())) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有空间访问权限");
-        }
+        // if (!loginUser.getId().equals(space.getUserId())) {
+        //      throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有空间访问权限");
+        //  }
 
         // 3.查询该空间下所有的图片，图片信息中的主色调不能为空
         List<Picture> pictureList = lambdaQuery()
@@ -661,11 +674,11 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         // 6.计算相似度并排序
         List<Picture> sortedPictures = pictureList.stream()
                 .sorted(Comparator.comparingDouble(picture -> {
-                    // 提取图片主色调，肯定是有的，因为能查出来的都是包含主色调的
+                    // 提取图片主色调，肯定是有的，因为只能查出来的都是包含主色调的
                     String hexColor = picture.getPicColor();
                     // 没有主色调的图片放到最后
                     if (StrUtil.isBlank(hexColor)) {
-                        //返回最大值，直接排在集合的后面
+                        // 返回最大值，直接排在集合的后面
                         return Double.MAX_VALUE;
                     }
                     Color pictureColor = Color.decode(hexColor);

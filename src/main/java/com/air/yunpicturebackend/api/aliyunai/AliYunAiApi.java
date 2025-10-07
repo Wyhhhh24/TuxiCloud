@@ -19,7 +19,8 @@ import org.springframework.stereotype.Component;
  * @author WyH524
  * @since 2025/9/16 下午12:14
  * 阿里云ai扩图 api
- * 文档链接：https://help.aliyun.com/zh/model-studio/image-scaling-api?spm=a2c4g.11186623.help-menu-2400256.d_2_2_9.278816daSCDT5j&scm=20140722.H_2796845._.OR_help-T_cn~zh-V_1#c7cc6032c2nr5
+ * 文档链接：
+ * https://help.aliyun.com/zh/model-studio/image-scaling-api?spm=a2c4g.11186623.help-menu-2400256.d_2_2_9.278816daSCDT5j&scm=20140722.H_2796845._.OR_help-T_cn~zh-V_1#c7cc6032c2nr5
  */
 @Slf4j
 @Component
@@ -42,10 +43,12 @@ public class AliYunAiApi {
      * @return
      */
     public CreateOutPaintingTaskResponse createOutPaintingTask(CreateOutPaintingTaskRequest createOutPaintingTaskRequest) {
+        // 1.参数校验
         if (createOutPaintingTaskRequest == null) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "扩图参数为空");
         }
-        // 1.构建HTTP请求对象
+
+        // 2.构建HTTP请求对象
         HttpRequest httpRequest = HttpRequest.post(CREATE_OUT_PAINTING_TASK_URL)
                 /**
                  * 请求头：
@@ -76,7 +79,7 @@ public class AliYunAiApi {
                 .header(Header.CONTENT_TYPE, ContentType.JSON.getValue())
                 .body(JSONUtil.toJsonStr(createOutPaintingTaskRequest));    //将Java对象自动序列化为 Json 字符串作为请求体
 
-        // 2.发请求的时候，try catch 一下 ，这里的对象需要释放资源，这里的 try 中构建对象的话，可以自动释放资源
+        // 3.发请求的时候，try catch 一下 ，这里的对象需要释放资源，这里在 try 中构建对象的话，可以自动释放资源
         try (HttpResponse httpResponse = httpRequest.execute()) {
             if (!httpResponse.isOk()) {
                 log.error("请求异常：{}", httpResponse.body());
@@ -93,6 +96,7 @@ public class AliYunAiApi {
         }
     }
 
+
     /**
      * 查询创建的任务
      *
@@ -100,18 +104,16 @@ public class AliYunAiApi {
      * @return
      */
     public GetOutPaintingTaskResponse getOutPaintingTask(String taskId) {
-        // 1.参数校验
-        if (StrUtil.isBlank(taskId)) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务 id 不能为空");
-        }
-        // 2.发请求，这里的 response 放在 try 里面可以自动释放
+        // 1.发请求，这里的 response 放在 try 里面可以自动释放
         try (HttpResponse httpResponse = HttpRequest.get(String.format(GET_OUT_PAINTING_TASK_URL, taskId))
                 .header(Header.AUTHORIZATION, "Bearer " + apiKey)
                 .execute()) {
             if (!httpResponse.isOk()) {
                 throw new BusinessException(ErrorCode.OPERATION_ERROR, "获取任务失败");
             }
+            // 2.获取返回结果
             return JSONUtil.toBean(httpResponse.body(), GetOutPaintingTaskResponse.class);
         }
     }
+
 }

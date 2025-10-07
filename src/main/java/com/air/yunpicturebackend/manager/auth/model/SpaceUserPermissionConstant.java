@@ -2,9 +2,9 @@ package com.air.yunpicturebackend.manager.auth.model;
 
 /**
  * 空间成员权限常量
- * 就和我们写枚举类一样的
+ * 和我们写枚举类一样的
  * 就是把刚刚那几个权限用了一个变量来定义
- * 这样打的时候只需要打常量而不是字符串，容易出错
+ * 这样打的时候只需要打常量而不是字符串，否则容易出错
  * 角色已经有枚举了
  */
 public interface SpaceUserPermissionConstant {

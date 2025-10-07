@@ -12,7 +12,7 @@ import java.io.IOException;
 /**
  * 请求包装过滤器
  *
- * 我们使用 Hutool 的工具类 ServletUtil 从 HttpServletRequest 中获取到了参数信息，但是坑爹的是，HttpServletRequest 的 body 值是个流，
+ * 我们使用 Hutool 的工具类 ServletUtil 从 HttpServletRequest 中获取到了参数信息，但是 HttpServletRequest 的 body 值是个流，
  * 只支持读取一次，读完就没了！所以为了解决这个问题，我们还要在 config 包下自定义请求包装类和请求包装类过滤器，来解决这个问题
  * @author pine
  */

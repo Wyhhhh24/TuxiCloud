@@ -6,11 +6,11 @@ import lombok.Data;
 import org.springframework.web.socket.WebSocketSession;
 
 /**
- * 图片编辑事件，这四个参数，就对应了我们编写的图片处理函数接收的四个参数，我们把图片处理当作一个事件，等会要发送给我们的队列
+ * 图片编辑事件，这四个参数，就对应了我们编写的图片处理函数时接收的四个参数，是必要的
+ * 我们把图片处理当作一个事件，发送给 Disruptor 队列
  */
 @Data
 public class PictureEditEvent {
-
     /**
      * 消息
      */

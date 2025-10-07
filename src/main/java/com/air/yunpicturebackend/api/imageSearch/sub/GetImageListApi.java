@@ -59,6 +59,7 @@ public class GetImageListApi {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "未获取到图片列表");
         }
         JSONArray list = data.getJSONArray("list");
+        // 获取的 json 数组中，只需要提取 thumbUrl、fromUrl
         return JSONUtil.toList(list, ImageSearchResult.class);
     }
 

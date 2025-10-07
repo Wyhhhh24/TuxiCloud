@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * 空间成员权限配置
- * 接收配置的
+ * 权限配置文件中的具体内容映射到这个类
  */
 @Data
 public class SpaceUserAuthConfig implements Serializable {

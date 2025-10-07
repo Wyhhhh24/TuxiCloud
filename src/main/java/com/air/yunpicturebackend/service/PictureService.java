@@ -25,7 +25,7 @@ public interface PictureService extends IService<Picture> {
      * 上传图片（url，本地图片上传）
      *
      * @param inputSource 文件输入源
-     * @param pictureUploadRequest  图片的 id ，用于修改，这就是请求体
+     * @param pictureUploadRequest   DTO 中若包含 pictureId ，也就是修改这条记录
      * @param loginUser 需要指定当前用户，因为我们要判断用户有没有权限上传
      * @return
      */

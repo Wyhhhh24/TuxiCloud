@@ -35,11 +35,11 @@ public class PictureShardingAlgorithm implements StandardShardingAlgorithm<Long>
      */
     @Override
     public String doSharding(Collection<String> availableTargetNames, PreciseShardingValue<Long> preciseShardingValue) {
-        Long spaceId = preciseShardingValue.getValue(); //拿到 spaceId
-        String logicTableName = preciseShardingValue.getLogicTableName();  //可以通过这个拿到逻辑表，就是 Picture 表
+        Long spaceId = preciseShardingValue.getValue(); // 拿到 spaceId
+        String logicTableName = preciseShardingValue.getLogicTableName();  // 可以通过这个拿到逻辑表，就是 Picture 表
 
         // 如果 spaceId 为 null 就是要查询所有的图片，起码表示要查公共图库的
-        // 没有指定查询空间的范围，直接返回逻辑表，表示接下来让 ShardingSphere 查询所有的表，挨个去枚举
+        // 没有指定查询空间的范围，直接返回逻辑表，表示接下来让 ShardingSphere 查询所有的表，挨个去查询
         if (spaceId == null) {
             return logicTableName;
         }

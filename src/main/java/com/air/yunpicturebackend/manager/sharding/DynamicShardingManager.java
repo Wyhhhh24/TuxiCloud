@@ -36,7 +36,7 @@ public class DynamicShardingManager {
 
     private static final String LOGIC_TABLE_NAME = "picture";
 
-    private static final String DATABASE_NAME = "logic_db"; // 配置文件中的数据库名称
+    private static final String DATABASE_NAME = "logic_db"; // 配置文件中的数据库名称，这里好像只能配置这个才能运行
 
 
     /**
@@ -55,7 +55,7 @@ public class DynamicShardingManager {
      * 动态创建分表
      * 我们的表也要创建，ShardingSphere 只是帮我们路由，从哪里去读，从哪里去写
      * 但是它不会帮我们自动去建表的，所以我们还需要自己去建表
-     * 创建空间的时候，就调用它
+     * 创建空间的时候，就调用它，自动创建表
      */
     public void createSpacePictureTable(Space space) {
         // 动态创建分表
@@ -133,7 +133,7 @@ public class DynamicShardingManager {
      * 获取所有动态表名，包括初始表 picture 和分表 picture_{spaceId}
      */
     private Set<String> fetchAllPictureTableNames() {
-        // 为了测试方便，直接对所有团队空间分表（实际上线改为仅对旗舰版生效）  todo 这里需要修改
+        // 仅对旗舰版团队空间生效
         // 查出来所有的 spaceId
         Set<Long> spaceIds = spaceService.lambdaQuery()
                 .eq(Space::getSpaceType, SpaceTypeEnum.TEAM.getValue())
