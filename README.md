@@ -25,7 +25,7 @@
   - 分享功能：一键分享图片或图库链接。
 
 ## 技术栈
-<img align="center" src="https://skillicons.dev/icons?i=java,springboot&theme=light" /><img src="https://skillicons.dev/icons?i=spring&theme=light" />
+<img align="center" src="https://skillicons.dev/icons?i=java,spring&theme=light" />
 本项目主要使用 Java 开发，结合现代技术栈，确保性能与扩展性。
 
 ## 安装与使用
