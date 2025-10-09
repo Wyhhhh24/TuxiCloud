@@ -27,6 +27,9 @@
 ## 技术栈
 
 <img align="center" src="https://skillicons.dev/icons?i=java&theme=light" />
+<img src="https://img.shields.io/badge/-HTML5-E34F26?style=flat-square&logo=html5&logoColor=white" /> 
+<img src="https://img.shields.io/badge/-CSS3-1572B6?style=flat-square&logo=css3" /> 
+<img src="https://img.shields.io/badge/-JavaScript-oringe?style=flat-square&logo=javascript" />
 
 本项目主要使用 Java 开发，结合现代技术栈，确保性能与扩展性。
 
