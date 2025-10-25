@@ -19,7 +19,6 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
-
 import javax.annotation.Resource;
 import java.io.IOException;
 import java.util.Map;
@@ -92,7 +91,6 @@ public class PictureEditHandler extends TextWebSocketHandler {
      * 收到前端发送的消息，，根据消息类别处理消息
      * 前端给我们的服务器发送了一个请求，我们收到请求之后，就根据用户发的消息来通知其它的客户端，把这个消息进行一个处理，广播啥的
      * 就和我们自己写 controller 一样的道理，根据不同的请求找到不同的方法
-     *
      * 使用 Disruptor 处理消息
      * 要定义一个事件，因为我们队列是要接收任务、接收事件的，我们要把这个消息处理当作一个事件，我们是要分为生产者、消费者和事件
      * handleTextMessage 中就是接收 WebSocket 传过来的消息进行处理，这个就是生产者，接收传过来的消息发送到消息队列中
@@ -107,6 +105,7 @@ public class PictureEditHandler extends TextWebSocketHandler {
         PictureEditRequestMessage pictureEditRequestMessage = JSONUtil.toBean(message.getPayload(), PictureEditRequestMessage.class);
 
         // 2.从 session 属性中拿到当前会话的用户信息，pictureId
+        // 我们有进行拦截
         Long pictureId = (Long)session.getAttributes().get("pictureId");
         User user = (User)session.getAttributes().get("user");
 
@@ -220,7 +219,6 @@ public class PictureEditHandler extends TextWebSocketHandler {
     }
 
 
-
     /**
      * 客户端退出连接，关闭了这个连接之后，我们需要释放一些资源
      */
@@ -260,7 +258,6 @@ public class PictureEditHandler extends TextWebSocketHandler {
      * 比如用户 A 操作了，用户 B 、用户 C 都要收到用户 A 的操作
      * 第一种情况是：把消息发送给除自己之外的所有用户
      * 第二种情况是：包括自己，只要有消息，我要给所有的用户都发送一遍消息
-     *
      * 广播给该图片的所有用户（支持排除掉某一个 session）
      */
     public void broadcastToPicture(Long pictureId, PictureEditResponseMessage pictureEditResponseMessage , WebSocketSession excludeSession) throws IOException {
@@ -282,11 +279,11 @@ public class PictureEditHandler extends TextWebSocketHandler {
             // 3.遍历会话对象集合，发送消息给所有的会话
             for (WebSocketSession session : sessionsSet) {
                 // 排除掉的 session 不发送
-                if(excludeSession != null && excludeSession.equals( session)){
+                if(excludeSession != null && excludeSession.equals(session)){
                     continue;
                 }
                 if(session.isOpen()){
-                    session.sendMessage(textMessage); //这里发送的消息，必须得是 TextMessage 类型的，所以进行转化
+                    session.sendMessage(textMessage); // 这里发送的消息，必须得是 TextMessage 类型的，所以进行转化
                 }
             }
         }

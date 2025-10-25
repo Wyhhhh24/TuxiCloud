@@ -378,7 +378,7 @@ public class PictureController {
      * 这里这个分页缓存先不用了，或者加一些权限校验，然后分开缓存
      */
     @Deprecated
-    @PostMapping("/list/page/vo/cache")  // todo 前端接口还没有引用
+    @PostMapping("/list/page/vo/cache")
     public BaseResponse<Page<PictureVO>> listPictureVOByPageWithCache(@RequestBody PictureQueryRequest pictureQueryRequest,
                                                                       HttpServletRequest request) {
         long current = pictureQueryRequest.getCurrent();
@@ -407,7 +407,7 @@ public class PictureController {
         // 2.本地缓存未命中，查询分布式缓存
         ValueOperations<String, String> valueOps = stringRedisTemplate.opsForValue();
         cachedValue = valueOps.get(cacheKey);
-        //如果缓存命中，更新本地缓存，返回结果
+        // 如果缓存命中，更新本地缓存，返回结果
         if (cachedValue != null) {
             LOCAL_CACHE.put(cacheKey, cachedValue);
             Page<PictureVO> cachepage = JSONUtil.toBean(cachedValue, Page.class);

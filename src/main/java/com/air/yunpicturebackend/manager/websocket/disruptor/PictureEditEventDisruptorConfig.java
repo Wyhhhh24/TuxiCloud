@@ -11,16 +11,16 @@ import javax.annotation.Resource;
  * @author WyH524
  * @since 2025/9/26 14:34
  * 图片编辑事件 Disruptor 配置
- * 这是环形控制器的配置类
+ * 环形控制器的配置类
  * 我们要先定义一下环形队列的结构，这样生产者才好往队列中去写
  *
  * 这样我们就创建出来了一个 Disruptor 的配置，等会我们在消息生产中就可以使用这个对象，拿到它的缓冲区，往里面塞任务了
  */
 @Configuration
 public class PictureEditEventDisruptorConfig {
-
     /**
      * 需要注册消费者
+     * 图片编辑事件放到队列了之后，得要有一个消费者进行消费，这里注册
      */
     @Resource
     private PictureEditEventWorkHandler pictureEditEventWorkHandler;
@@ -39,7 +39,7 @@ public class PictureEditEventDisruptorConfig {
         int bufferSize = 1024 * 256;
         // 创建 Disruptor 对象
         Disruptor<PictureEditEvent> disruptor = new Disruptor<>(
-                PictureEditEvent::new, //创建一个 Disruptor 的事件对象，就是用来定义每次放到缓冲区的数据的类型，这里是图片编辑事件类型
+                PictureEditEvent::new, //创建一个 Disruptor 的事件对象，就是用来定义每次放到缓冲区的数据的类型，图片编辑事件类型
                 bufferSize, // 缓冲区的大小
                 ThreadFactoryBuilder.create() // 创建一个线程是为了我们更好的去调试，这是一个最佳实践
                         .setNamePrefix("PictureEditEventDisruptor")  // 指定每个线程的前缀

@@ -15,7 +15,7 @@ import java.util.List;
 public class ImageSearchApiFacade {
 
     /**
-     * 搜索图片
+     * 以图搜图
      *
      * @param imageUrl
      * @return

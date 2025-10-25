@@ -17,6 +17,7 @@ import java.util.Map;
 public class GetImagePageUrlApi {
 
     /**
+     *   一
      * 获取图片页面地址
      *
      * @param imageUrl

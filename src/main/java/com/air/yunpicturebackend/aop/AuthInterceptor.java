@@ -57,13 +57,14 @@ public class AuthInterceptor {
         // 3.获取当前这个接口允许哪位角色访问，根据 value 值获取对应的枚举
         UserRoleEnum mustRoleEnum = UserRoleEnum.getEnumByValue(mustRole);
 
-        // 如果返回的枚举为空，也就是所加注解的接口上，不是我们需要我们进行权限控制，前面一步进行了登录验证，所以加这个注解就是为了验证是否登录
+        // 如果返回的枚举为空，也就是所加注解的接口上，不是我们需要我们进行权限控制
+        // 前面一步进行了登录验证，所以加这个注解保底，这个接口就是验证是否登录
         if (mustRoleEnum == null) {
-            //直接放行
+            // 直接放行
             return joinPoint.proceed();
         }
 
-        // 所加注解的方法必须有对应权限才通过
+        // 到这里的话，所加注解的接口必须有对应权限才通过
         // 4.获取当前用户具有的权限
         UserRoleEnum userRoleEnum = UserRoleEnum.getEnumByValue(loginUser.getUserRole());
 

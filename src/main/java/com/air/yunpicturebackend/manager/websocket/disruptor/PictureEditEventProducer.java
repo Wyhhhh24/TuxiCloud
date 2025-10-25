@@ -1,5 +1,4 @@
 package com.air.yunpicturebackend.manager.websocket.disruptor;
-
 import com.air.yunpicturebackend.manager.websocket.model.PictureEditRequestMessage;
 import com.air.yunpicturebackend.model.entity.User;
 import com.lmax.disruptor.RingBuffer;
@@ -7,7 +6,6 @@ import com.lmax.disruptor.dsl.Disruptor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
-
 import javax.annotation.PreDestroy;
 import javax.annotation.Resource;
 
@@ -18,13 +16,17 @@ import javax.annotation.Resource;
 @Slf4j
 public class PictureEditEventProducer {
 
+    /**
+     * 注入 Disruptor 对象
+     */
     @Resource
     Disruptor<PictureEditEvent> pictureEditEventDisruptor;
 
     /**
-     * 发布事件的方法
-     * 我们需要自己把传过来的必要参数，封装成一个对象，也就是封装成一个事件然后发到队列里，自行就会去消费了
-     * 我们怎么样去往队列里面放内容呢？我们刚提到是不是要先取到这个环形缓冲区下一个可以放置的位置
+     * 生产者
+     * 将事件的发布到缓冲区
+     * 我们需要自己把传过来的必要参数，封装成一个对象，也就是封装成一个事件然后发到队列里，队列绑定消费者之后，就会自行进行消费了
+     * 我们怎么样去往队列里面放内容呢？是不是要先取到这个环形缓冲区下一个可以放置的位置
      * 不是随便来放置的，需要根据序号来放置这个任务的
      */
     public void publishEvent(PictureEditRequestMessage pictureEditRequestMessage, WebSocketSession session, User user, Long pictureId) {

@@ -16,6 +16,7 @@ import java.util.List;
 public class GetImageListApi {
 
     /**
+     *     三
      * 获取图片列表
      *
      * @param url

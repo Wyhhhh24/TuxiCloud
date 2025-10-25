@@ -24,7 +24,7 @@ import javax.annotation.Resource;
  * 图片编辑事件处理器（消费者）
  */
 @Slf4j
-@Component                // 需要实现 Disruptor 的消费者接口，泛型就是事件类型，这是可以自定义的，也就是如果要处理消息要传的必要参数，可以封装到这个类里面，等同于事件
+@Component                // 需要实现 Disruptor 的消费者接口，泛型就是事件类型，这是自定义的，也就要处理消息得要要传的必要参数可以封装到这个类里面，等同于事件
 public class PictureEditEventWorkHandler implements WorkHandler<PictureEditEvent> {
 
     // 我们得要使用 PictureEditHandler 中定义的处理消息的方法
@@ -46,7 +46,7 @@ public class PictureEditEventWorkHandler implements WorkHandler<PictureEditEvent
         WebSocketSession session = pictureEditEvent.getSession();
         User user = pictureEditEvent.getUser();
 
-        // 2.从消息信息中获取到对应的消息类别，获取到枚举
+        // 2.从消息信息中获取到对应的消息类别，获取到这个消息类型的枚举
         String type = pictureEditRequestMessage.getType();
         PictureEditMessageTypeEnum pictureEditMessageTypeEnum = PictureEditMessageTypeEnum.getEnumByValue(type);
 
@@ -66,7 +66,7 @@ public class PictureEditEventWorkHandler implements WorkHandler<PictureEditEvent
                 pictureEditResponseMessage.setType(PictureEditMessageTypeEnum.ERROR.getValue());
                 pictureEditResponseMessage.setMessage("消息类型错误");
                 pictureEditResponseMessage.setUser(userService.getUserVO(user));
-                // 解决精度丢失问题
+                // 解决精度丢失问题，因为需要返回用户 Id Long 类型的
                 ObjectMapper objectMapper = new ObjectMapper(); // 创建 jackson 库的 ObjectMapper
                 SimpleModule module = new SimpleModule();
                 module.addSerializer(Long.class, ToStringSerializer.instance);

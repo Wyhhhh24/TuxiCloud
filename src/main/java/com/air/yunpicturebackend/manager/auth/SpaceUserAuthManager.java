@@ -81,10 +81,8 @@ public class SpaceUserAuthManager {
         if (loginUser == null) {
             return new ArrayList<>();
         }
-
         // 2.定义一个管理员所具有的所有权限列表
         List<String> ADMIN_PERMISSIONS = getPermissionsByRole(SpaceRoleEnum.ADMIN.getValue());
-
         // 3.如果是公共图库
         if (space == null) {
             // 3.1.如果当前用户是管理员，他就有全部权限，因为对于公共图库只有管理员才有权限
@@ -94,14 +92,12 @@ public class SpaceUserAuthManager {
             // 3.2.否则，该用户就只有 只读权限
             return Collections.singletonList(SpaceUserPermissionConstant.PICTURE_VIEW);
         }
-
         // 4.判断空间所属类别
         SpaceTypeEnum spaceTypeEnum = SpaceTypeEnum.getEnumByValue(space.getSpaceType());
         if (spaceTypeEnum == null) {
             // 若既不是团队也不是私有空间，其实是错误的，返回空权限列表
             return new ArrayList<>();
         }
-
         // 4.1.根据空间类别获取对应的权限
         switch (spaceTypeEnum) {
             case PRIVATE:
@@ -123,7 +119,6 @@ public class SpaceUserAuthManager {
                     return getPermissionsByRole(spaceUser.getSpaceRole());
                 }
         }
-
         // 5.没有权限
         return new ArrayList<>();
     }

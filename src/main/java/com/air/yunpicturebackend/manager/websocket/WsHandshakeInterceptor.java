@@ -1,9 +1,6 @@
 package com.air.yunpicturebackend.manager.websocket;
-
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
-import com.air.yunpicturebackend.constant.UserConstant;
-import com.air.yunpicturebackend.manager.auth.SpaceUserAuthContext;
 import com.air.yunpicturebackend.manager.auth.SpaceUserAuthManager;
 import com.air.yunpicturebackend.manager.auth.model.SpaceUserPermissionConstant;
 import com.air.yunpicturebackend.model.entity.Picture;
@@ -12,7 +9,6 @@ import com.air.yunpicturebackend.model.entity.User;
 import com.air.yunpicturebackend.model.enums.SpaceTypeEnum;
 import com.air.yunpicturebackend.service.PictureService;
 import com.air.yunpicturebackend.service.SpaceService;
-import com.air.yunpicturebackend.service.SpaceUserService;
 import com.air.yunpicturebackend.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.server.ServerHttpRequest;
@@ -21,7 +17,6 @@ import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
-
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -98,7 +93,7 @@ public class WsHandshakeInterceptor implements HandshakeInterceptor {
                     log.error("空间不存在，拒绝握手");
                     return false;
                 }
-                // 判断是不是团队空间
+                // 判断是不是团队空间，也就是这图片必须得是团队空间中的图片才行
                 if(space.getSpaceType() != SpaceTypeEnum.TEAM.getValue()){
                     log.error("不是团队空间，拒绝握手");
                     return false;
@@ -109,7 +104,7 @@ public class WsHandshakeInterceptor implements HandshakeInterceptor {
             // 拿到用户的权限列表，判断权限列表是否包含编辑权限
             List<String> permissionList = spaceUserAuthManager.getPermissionList(space, loginUser);
             if(!permissionList.contains(SpaceUserPermissionConstant.PICTURE_EDIT)){
-                // 如果不包含的话，也报错
+                // 如果没有编辑权限，报错
                 log.error("用户没有编辑权限，拒绝握手");
                 return false;
             }
@@ -118,7 +113,7 @@ public class WsHandshakeInterceptor implements HandshakeInterceptor {
             // 1.5.1.设置用户登录信息等属性到 WebSocket 会话中，我们这个握手前的方法有一个参数 Map<String, Object> attributes
             // 它是一个 Map ，我们给这个 Map 中插入键值对，就相当于给接下来给建立连接的 WebSocket 会话创建属性
             attributes.put("user", loginUser);
-            attributes.put("userId", loginUser.getId()); // 此外为了方便这里也设置一个 userId 不知道会不会用到，先存了
+            attributes.put("userId", loginUser.getId()); // 此外为了方便这里也设置一个 userId
             attributes.put("pictureId", Long.valueOf(pictureId)); // 这个是一定要存的，没有 pictureId 怎么去维护 pictureId 对应的会话集合
             // 这里的 pictureId 从 String 类型转换为 Long 类型
             return true;
